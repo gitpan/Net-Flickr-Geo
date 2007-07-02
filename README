@@ -1,0 +1,223 @@
+NAME
+    Net::Flickr::Geo - tools for working with geotagged Flickr photos
+
+SYNOPSIS
+     use Config::Simple;
+     use Net::Flickr::Geo;
+
+     my $cfg = Config::Simple->new("/path/to/config");
+     my $fl  = Net::Flickr::Geo->new($cfg);
+
+     mt $id     = '99999999';
+     my $upload = 1;
+
+     my @res = $fl->mk_pinwin_map($id, $upload);
+
+     # returns :
+     # ['/tmp/GGsf4552h.jpg', '99999992'];
+
+DESCRIPTION
+    Tools for working with geotagged Flickr photos.
+
+OPTIONS
+    Options are passed to Net::Flickr::Backup using a Config::Simple object
+    or a valid Config::Simple config file. Options are grouped by "block".
+
+  flick
+
+    * api_key
+        String. *required*
+
+        A valid Flickr API key.
+
+    * api_secret
+        String. *required*
+
+        A valid Flickr Auth API secret key.
+
+    * auth_token
+        String. *required*
+
+        A valid Flickr Auth API token.
+
+        The api_handler defines which XML/XPath handler to use to process
+        API responses.
+
+        * LibXML
+            Use XML::LibXML.
+
+        * XPath
+            Use XML::XPath.
+
+  pinwin
+
+    * map_source
+        Valid options are :
+
+        * yahoo
+            Fetch images using the Yahoo! Map Image API
+
+        * modestmaps
+            Fetch images using the ModestMaps map tile composer.
+
+            ModestMaps is Python based and You will need to have a current
+            version of the ModestMaps libraries, and all its dependencies,
+            installed whatever machine is using Net::Flickr::Geo.
+
+        Default is *yahoo*.
+
+    * map_mode
+        Convert the background map image to use a different colour scale.
+        Valid options are :
+
+        * grey
+            You know, black and white and all that grey in between.
+
+        Default is none (or colour).
+
+    * map_height
+        The height of the background map on which the pinwin/thumbnail will
+        be placed.
+
+        Default is 1024.
+
+    * map_width
+        The width of the background map on which the pinwin/thumbnail will
+        be placed.
+
+        Default is 1024.
+
+    * map_radius
+        Set the Yahoo! Map Image API 'radius' property. From the docs :
+
+        "How far (in miles) from the specified location to display on the
+        map."
+
+        Default is none, and to use a zoom level that maps to the *accuracy*
+        property of a photo.
+
+    * upload_public
+        Mark pinwin uploads to Flickr as viewable by anyone.
+
+        Default is false.
+
+    * upload_friend
+        Mark pinwin uploads to Flickr as viewable only by friends.
+
+        Default is false.
+
+    * upload_family
+        Mark pinwin uploads to Flickr as viewable only by family.
+
+        Default is false.
+
+  yahoo
+
+    * appid
+        A valid Yahoo! developers API key.
+
+  modestmaps
+
+    * python
+        The path to a Python interpreter with all the required dependencies
+        to run compose.py
+
+    * composer
+        The path to a current version of the ModestMaps compose.py
+        application
+
+    * provider
+        A map provider and tile format for generating map images.
+
+        As of this writing, current providers are :
+
+        * MICROSOFT_ROAD
+        * MICROSOFT_AERIAL
+        * MICROSOFT_HYBRID
+        * GOOGLE_ROAD
+        * GOOGLE_AERIAL
+        * GOOGLE_HYBRID
+        * YAHOO_ROAD
+        * YAHOO_AERIAL
+        * YAHOO_HYBRID
+PACKAGE METHODS
+  __PACKAGE__->new($cfg)
+
+    Returns a *Net::Flickr::Geo* object.
+
+OBJECT METHODS YOU SHOULD CARE ABOUT
+  $obj->mk_pinwin_map($photo_id, $upload=0, $out='')
+
+    Fetch a map using the Yahoo! Map Image API for a geotagged Flickr photo
+    and place a "pinwin" style thumbnail of the photo over the map's marker.
+
+    Returns a list.
+
+    The first element of the list will be the path to the newly created map
+    image. If uploads are enabled the newly created Flickr photo ID will be
+    passed as the second element.
+
+  $obj->mk_pinwin_maps_for_set($set_id, $upload=0)
+
+    For each geotagged photo in a set, Ffetch a map using the Yahoo! Map
+    Image API for a geotagged Flickr photo and place a "pinwin" style
+    thumbnail of the photo over the map's marker.
+
+    If uploads are enabled then each map for a given photo will be added
+    such that it appears before the photo it references.
+
+    Returns a list of array references.
+
+    The first element of each array reference will be the path to the newly
+    created map image. If uploads are enabled the newly created Flickr photo
+    ID will be passed as the second element.
+
+  $obj->mk_pinwin_maps_for_photoset($set_id, $upload)
+
+    This is just an alias for *mk_pinwin_maps_for_photoset*.
+
+VERSION
+    0.3
+
+DATE
+    $Date: 2007/07/02 06:46:05 $
+
+AUTHOR
+    Aaron Straup Cope <ascope@cpan.org>
+
+NOTES
+    All uploads to Flickr are marked with a content-type of "other".
+
+IMPORTANT
+    This package requires that you have the command-line version of
+    ImageMagick installed.
+
+    It will be updated to use the Perl *Image::Magick* libraries in future
+    releases.
+
+SEE ALSO
+    Net::Flickr::API
+
+    http://developer.yahoo.com/maps/rest/V1/mapImage.html
+
+    http://modestmaps.mapstraction.com/
+
+    http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo
+
+    http://www.aaronland.info/weblog/2007/06/08/pynchonite/#nfg_mm
+
+    http://flickr.com/photos/straup/sets/72157600321286227/
+
+    http://www.flickr.com/help/filters/
+
+BUGS
+    Sure, why not.
+
+    Please report all bugs via http://rt.cpan.org
+
+LICENSE
+    Copyright (c) 2007 Aaron Straup Cope. All Rights Reserved.
+
+    This is free software. You may redistribute it and/or modify it under
+    the same terms as Perl itself.
+

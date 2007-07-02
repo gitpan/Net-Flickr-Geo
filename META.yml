@@ -1,0 +1,27 @@
+---
+name: Net-Flickr-Geo
+version: 0.3
+author:
+  - 'Aaron Straup Cope  E<lt>ascope@cpan.orgE<gt>'
+abstract: tools for working with geotagged Flickr photos
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  Config::Simple: 0
+  Flickr::Upload: 1.25
+  Geo::Coordinates::DecimalDegrees: 0
+  LWP::Simple: 0
+  LWP::UserAgent: 0
+  MIME::Base64: 0
+  Net::Flickr::API: '>= 1.65'
+build_requires:
+  Test::Simple: '>= 0.47'
+provides:
+  Net::Flickr::Geo:
+    file: lib/Net/Flickr/Geo.pm
+    version: 0.3
+generated_by: Module::Build version 0.2806
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
