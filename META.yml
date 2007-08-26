@@ -1,6 +1,6 @@
 ---
 name: Net-Flickr-Geo
-version: 0.3
+version: 0.4
 author:
   - 'Aaron Straup Cope  E<lt>ascope@cpan.orgE<gt>'
 abstract: tools for working with geotagged Flickr photos
@@ -20,8 +20,8 @@ build_requires:
 provides:
   Net::Flickr::Geo:
     file: lib/Net/Flickr/Geo.pm
-    version: 0.3
-generated_by: Module::Build version 0.2806
+    version: 0.4
+generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2

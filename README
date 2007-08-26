@@ -118,13 +118,11 @@ OPTIONS
 
   modestmaps
 
-    * python
-        The path to a Python interpreter with all the required dependencies
-        to run compose.py
+    * server
+        The URL to a server running the ws-compose.py HTTP interface to the
+        ModestMaps tile-creation service.
 
-    * composer
-        The path to a current version of the ModestMaps compose.py
-        application
+        This requires Modest Maps revision 339 or higher.
 
     * provider
         A map provider and tile format for generating map images.
@@ -177,10 +175,10 @@ OBJECT METHODS YOU SHOULD CARE ABOUT
     This is just an alias for *mk_pinwin_maps_for_photoset*.
 
 VERSION
-    0.3
+    0.4
 
 DATE
-    $Date: 2007/07/02 06:46:05 $
+    $Date: 2007/08/26 04:26:50 $
 
 AUTHOR
     Aaron Straup Cope <ascope@cpan.org>
@@ -201,6 +199,10 @@ SEE ALSO
     http://developer.yahoo.com/maps/rest/V1/mapImage.html
 
     http://modestmaps.mapstraction.com/
+
+    http://mike.teczno.com/notes/oakland-crime-maps/IX.html
+
+    http://www.aaronland.info/weblog/2007/07/28/trees/#delmaps_pm
 
     http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo
 

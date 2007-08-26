@@ -6,9 +6,22 @@
 @prefix asc:     <http://aaronland.info/ns/changefile/> .
                                      
 <>
-        dc:identifier           "$Id: Changes,v 1.3 2007/07/02 06:44:04 asc Exp $" ;
+        dc:identifier           "$Id: Changes,v 1.4 2007/08/26 04:22:49 asc Exp $" ;
         dc:description          "Changes for Net::Flickr::Geo.pm" ;
         dcterms:references      <http://aaronland.info/perl/net/flickr/geo/> .
+
+<http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.4.tar.gz>
+        dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
+        dcterms:replaces    <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.3.tar.gz> ;
+
+        doap:Version    [
+                        doap:revision     "0.4" ;
+                        doap:created      "2007-08-25" ;
+                        ];
+        asc:changes     [
+                        asc:update        "Replace system calls to the Modest Maps compose script with Hooks to use ModestMaps ws-compose.py web service to fetch maps tiles" ;
+                        asc:comment       "If you were using the ModestMaps hooks in version 0.3 you will need to update your code" ;
+                        ] .
 
 <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.3.tar.gz>
         dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;

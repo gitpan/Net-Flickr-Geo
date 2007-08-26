@@ -3,7 +3,7 @@
 package Net::Flickr::Geo;
 use base qw (Net::Flickr::API);
 
-$Net::Flickr::Geo::VERSION = '0.3';
+$Net::Flickr::Geo::VERSION = '0.4';
 
 =head1 NAME 
 
@@ -171,14 +171,12 @@ A valid Yahoo! developers API key.
 
 =over 4
 
-=item * B<python>
+=item * B<server>
 
-The path to a Python interpreter with all the required dependencies to
-run compose.py
+The URL to a server running the ws-compose.py HTTP interface to the 
+ModestMaps tile-creation service.
 
-=item * B<composer>
-
-The path to a current version of the ModestMaps compose.py application
+This requires Modest Maps revision 339 or higher.
 
 =item * B<provider>
 
@@ -505,8 +503,7 @@ sub fetch_modest_map_image {
         my $lon  = shift;
         my $acc  = shift;
 
-        my $path_python   = $self->{'cfg'}->param("modestmaps.python");
-        my $path_composer = $self->{'cfg'}->param("modestmaps.composer");
+        my $out = $self->mk_tempfile(".png");
 
         my $provider = $self->{'cfg'}->param("modestmaps.provider");
 
@@ -515,22 +512,21 @@ sub fetch_modest_map_image {
 
         $acc = $self->mk_flickr_accuracy($short . "_mm", $acc);
 
-        my $out = $self->mk_tempfile(".png");
+        if (my $enforced = $self->{'cfg'}->param("modestmaps.enforce_zoom")){
+                if ($acc > $enforced){
+                        $acc = $enforced;
+                }
+        }
 
         my $h = $self->pinwin_map_dimensions("height");
         my $w = $self->pinwin_map_dimensions("width");
 
-        my $cmd = "$path_python $path_composer -d $h $w -p $provider -c $lat $lon $acc -o $out";
-        $self->log()->info($cmd);
+        my $remote = $self->{'cfg'}->param("modestmaps.server");
 
-        system($cmd);
+        my $url = sprintf("%s?provider=%s&latitude=%s&longitude=%s&accuracy=%s&height=%s&width=%s",
+                          $remote, $provider, $lat, $lon, $acc, $h, $w);
 
-        if (! -f $out){
-                $self->log()->error("Failed to create modest map, $!\ncommand was '$cmd'");
-                return undef;
-        }
-        
-        return $out;
+        return $self->simple_get($url, $out);
 }
 
 sub fetch_yahoo_map_image {
@@ -784,11 +780,11 @@ sub DESTROY {
 
 =head1 VERSION
 
-0.3
+0.4
 
 =head1 DATE
 
-$Date: 2007/07/02 06:46:05 $
+$Date: 2007/08/26 04:26:50 $
 
 =head1 AUTHOR
 
@@ -811,6 +807,10 @@ L<Net::Flickr::API>
 L<http://developer.yahoo.com/maps/rest/V1/mapImage.html>
 
 L<http://modestmaps.mapstraction.com/>
+
+L<http://mike.teczno.com/notes/oakland-crime-maps/IX.html>
+
+L<http://www.aaronland.info/weblog/2007/07/28/trees/#delmaps_pm>
 
 L<http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo>
 
