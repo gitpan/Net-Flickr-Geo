@@ -6,9 +6,26 @@
 @prefix asc:     <http://aaronland.info/ns/changefile/> .
                                      
 <>
-        dc:identifier           "$Id: Changes,v 1.4 2007/08/26 04:22:49 asc Exp $" ;
+        dc:identifier           "$Id: Changes,v 1.6 2008/01/27 17:18:17 asc Exp $" ;
         dc:description          "Changes for Net::Flickr::Geo.pm" ;
         dcterms:references      <http://aaronland.info/perl/net/flickr/geo/> .
+
+<http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.5.tar.gz>
+        dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
+        dcterms:replaces    <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.4.tar.gz> ;
+
+        doap:Version    [
+                        doap:revision     "0.5" ;
+                        doap:created      "2008-01-27" ;
+                        ];
+        asc:changes     [
+                        asc:comment       "THIS VERSION IS FOR ALL INTENTS AND PURPOSES NOT BACKWARDS COMPATIBLE. SORRY. IT SHOULDN'T HAPPEN AGAIN" ;
+                        asc:update        "Move code in to service specific packages" ;
+                        asc:update        "Update ModestMaps (MM) provider to use MM 1.0 tools" ;
+                        asc:update        "Replace all (but one) calls to imagemagick CLI scripts with GD or Imager" ;
+                        asc:update        "Move pinwin function(s) into N:F:G::Pinwin" ;
+                        asc:addition      "Add mk_poster_map_for_photoset; upload_poster_map; crop_poster_map methods for MM provider" ;  
+                        ] .
 
 <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.4.tar.gz>
         dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;

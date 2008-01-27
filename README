@@ -2,196 +2,110 @@ NAME
     Net::Flickr::Geo - tools for working with geotagged Flickr photos
 
 SYNOPSIS
-     use Config::Simple;
-     use Net::Flickr::Geo;
-
-     my $cfg = Config::Simple->new("/path/to/config");
-     my $fl  = Net::Flickr::Geo->new($cfg);
-
-     mt $id     = '99999999';
-     my $upload = 1;
-
-     my @res = $fl->mk_pinwin_map($id, $upload);
-
-     # returns :
-     # ['/tmp/GGsf4552h.jpg', '99999992'];
+    There is no synopsis. There is only documentation for provider specific
+    packages. Okay, I lied. There's a little bit below. But really, please
+    consult provider specific packaged for details.
 
 DESCRIPTION
     Tools for working with geotagged Flickr photos.
 
-OPTIONS
-    Options are passed to Net::Flickr::Backup using a Config::Simple object
-    or a valid Config::Simple config file. Options are grouped by "block".
+PROVIDERS
+  ModestMaps
 
-  flick
+    Fetch maps using the Modest Maps ws-pinwin HTTP interface :
 
-    * api_key
-        String. *required*
+     #
+     # Simple
+     #
 
-        A valid Flickr API key.
+     my %opts = ();
+     getopts('c:i:', \%opts);
 
-    * api_secret
-        String. *required*
+     my $cfg = Config::Simple->new($opts{'c'});
 
-        A valid Flickr Auth API secret key.
+     $cfg->param("pinwin.photo_size", "Medium");
+     $cfg->param("modestmaps.filter", "atkinson");
+     $cfg->param("pinwin.upload", 1);
+        
+     my $fl = Net::Flickr::Geo::ModestMaps->new($cfg);
+     $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
 
-    * auth_token
-        String. *required*
+     my $map = $fl->mk_pinwin_map_for_photo($opts{'i'});
+     $fl->log()->info("wrote map to $map->[0]->[0]");
 
-        A valid Flickr Auth API token.
+     #
+     # Fancy
+     #
 
-        The api_handler defines which XML/XPath handler to use to process
-        API responses.
+     my %opts = ();
+     getopts('c:s:', \%opts);
 
-        * LibXML
-            Use XML::LibXML.
+     my $cfg = Config::Simple->new($opts{'c'});
 
-        * XPath
-            Use XML::XPath.
+     my $fl = Net::Flickr::Geo::ModestMaps->new($cfg);
+     $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'info'));
 
-  pinwin
+     my $data = $fl->mk_poster_map_for_photoset($opts{'s'});
+     $fl->log()->info(Dumper($data));
 
-    * map_source
-        Valid options are :
+     my $tiles = $fl->upload_poster_map($data->{'path'});
+     $fl->log()->info(Dumper($tiles));
 
-        * yahoo
-            Fetch images using the Yahoo! Map Image API
+  YahooMaps
 
-        * modestmaps
-            Fetch images using the ModestMaps map tile composer.
+    Fetch maps using the Yahoo! Maps Image API :
 
-            ModestMaps is Python based and You will need to have a current
-            version of the ModestMaps libraries, and all its dependencies,
-            installed whatever machine is using Net::Flickr::Geo.
+     #
+     # Simple
+     #
 
-        Default is *yahoo*.
+     my %opts = ();
+     getopts('c:i:', \%opts);
 
-    * map_mode
-        Convert the background map image to use a different colour scale.
-        Valid options are :
+     my $cfg = Config::Simple->new($opts{'c'});
 
-        * grey
-            You know, black and white and all that grey in between.
+     my $fl = Net::Flickr::Geo::YahooMaps->new($cfg);
+     $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
 
-        Default is none (or colour).
+     my $map = $fl->mk_pinwin_map_for_photo($opts{'i'});
+     $fl->log()->info("wrote map to $map->[0]->[0]");
 
-    * map_height
-        The height of the background map on which the pinwin/thumbnail will
-        be placed.
+     #
+     # Handy
+     #
 
-        Default is 1024.
+     my %opts = ();
+     getopts('c:s:', \%opts);
 
-    * map_width
-        The width of the background map on which the pinwin/thumbnail will
-        be placed.
+     my $cfg = Config::Simple->new($opts{'c'});
 
-        Default is 1024.
+     my $fl = Net::Flickr::Geo::YahooMaps->new($cfg);
+     $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
 
-    * map_radius
-        Set the Yahoo! Map Image API 'radius' property. From the docs :
+     my $map = $fl->mk_pinwin_maps_for_photoset($opts{'s'});
 
-        "How far (in miles) from the specified location to display on the
-        map."
+     foreach my $data (@$map){
+            $fl->log()->info("wrote image/map to $data->[0]");
+     }
 
-        Default is none, and to use a zoom level that maps to the *accuracy*
-        property of a photo.
+IMPORTANT
+    Versions 0.5 and higher are, essentially, not even a little bit
+    backwards compatible.
 
-    * upload_public
-        Mark pinwin uploads to Flickr as viewable by anyone.
-
-        Default is false.
-
-    * upload_friend
-        Mark pinwin uploads to Flickr as viewable only by friends.
-
-        Default is false.
-
-    * upload_family
-        Mark pinwin uploads to Flickr as viewable only by family.
-
-        Default is false.
-
-  yahoo
-
-    * appid
-        A valid Yahoo! developers API key.
-
-  modestmaps
-
-    * server
-        The URL to a server running the ws-compose.py HTTP interface to the
-        ModestMaps tile-creation service.
-
-        This requires Modest Maps revision 339 or higher.
-
-    * provider
-        A map provider and tile format for generating map images.
-
-        As of this writing, current providers are :
-
-        * MICROSOFT_ROAD
-        * MICROSOFT_AERIAL
-        * MICROSOFT_HYBRID
-        * GOOGLE_ROAD
-        * GOOGLE_AERIAL
-        * GOOGLE_HYBRID
-        * YAHOO_ROAD
-        * YAHOO_AERIAL
-        * YAHOO_HYBRID
-PACKAGE METHODS
-  __PACKAGE__->new($cfg)
-
-    Returns a *Net::Flickr::Geo* object.
-
-OBJECT METHODS YOU SHOULD CARE ABOUT
-  $obj->mk_pinwin_map($photo_id, $upload=0, $out='')
-
-    Fetch a map using the Yahoo! Map Image API for a geotagged Flickr photo
-    and place a "pinwin" style thumbnail of the photo over the map's marker.
-
-    Returns a list.
-
-    The first element of the list will be the path to the newly created map
-    image. If uploads are enabled the newly created Flickr photo ID will be
-    passed as the second element.
-
-  $obj->mk_pinwin_maps_for_set($set_id, $upload=0)
-
-    For each geotagged photo in a set, Ffetch a map using the Yahoo! Map
-    Image API for a geotagged Flickr photo and place a "pinwin" style
-    thumbnail of the photo over the map's marker.
-
-    If uploads are enabled then each map for a given photo will be added
-    such that it appears before the photo it references.
-
-    Returns a list of array references.
-
-    The first element of each array reference will be the path to the newly
-    created map image. If uploads are enabled the newly created Flickr photo
-    ID will be passed as the second element.
-
-  $obj->mk_pinwin_maps_for_photoset($set_id, $upload)
-
-    This is just an alias for *mk_pinwin_maps_for_photoset*.
+    Please adjust your code and expectations accordingly. It shouldn't
+    happen again...
 
 VERSION
-    0.4
+    0.5
 
 DATE
-    $Date: 2007/08/26 04:26:50 $
+    $Date: 2008/01/27 21:52:48 $
 
 AUTHOR
     Aaron Straup Cope <ascope@cpan.org>
 
 NOTES
     All uploads to Flickr are marked with a content-type of "other".
-
-IMPORTANT
-    This package requires that you have the command-line version of
-    ImageMagick installed.
-
-    It will be updated to use the Perl *Image::Magick* libraries in future
-    releases.
 
 SEE ALSO
     Net::Flickr::API
@@ -218,7 +132,7 @@ BUGS
     Please report all bugs via http://rt.cpan.org
 
 LICENSE
-    Copyright (c) 2007 Aaron Straup Cope. All Rights Reserved.
+    Copyright (c) 2007-2008 Aaron Straup Cope. All Rights Reserved.
 
     This is free software. You may redistribute it and/or modify it under
     the same terms as Perl itself.
