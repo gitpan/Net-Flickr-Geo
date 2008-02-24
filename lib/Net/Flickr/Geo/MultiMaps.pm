@@ -1,12 +1,14 @@
 use strict;
-# $Id: YahooMaps.pm,v 1.17 2008/02/24 18:05:18 asc Exp $
+# $Id: MultiMaps.pm,v 1.2 2008/02/24 18:18:36 asc Exp $
 
-package Net::Flickr::Geo::YahooMaps;
+package Net::Flickr::Geo::MultiMaps;
 use base qw (Net::Flickr::Geo);
+
+$Net::Flickr::Geo::MultiMaps::VERSION = '0.6';
 
 =head1 NAME
 
-Net::Flickr::Geo::YahooMaps - tools for working with geotagged Flickr photos and Yahoo! Maps
+Net::Flickr::Geo::MultiMaps - tools for working with geotagged Flickr photos and Yahoo! Maps
 
 =head1 SYNOPSIS
 
@@ -15,7 +17,7 @@ Net::Flickr::Geo::YahooMaps - tools for working with geotagged Flickr photos and
 
  my $cfg = Config::Simple->new($opts{'c'});
 
- my $fl = Net::Flickr::Geo::YahooMaps->new($cfg);
+ my $fl = Net::Flickr::Geo::MultiMaps->new($cfg);
  $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'info'));
 
  my @map = $fl->mk_pinwin_map_for_photo($opts{'i'});
@@ -26,7 +28,7 @@ Net::Flickr::Geo::YahooMaps - tools for working with geotagged Flickr photos and
 
 =head1 DESCRIPTION
 
-Tools for working with geotagged Flickr photos and Yahoo! Maps
+Tools for working with geotagged Flickr photos and MultiMapss
 
 =cut
 
@@ -139,27 +141,19 @@ By default, the object will try to map the (Flickr) accuracy to the correspondin
 zoom level of the Modest Maps provider you have chosen. If this option is defined
 then it will be used as the zoom level regardless of what Flickr says.
 
-=head2 yahoo
+=head2 multimap
 
 =over 4
 
 =item * B<appid>
 
-A valid Yahoo! developers API key.
-
-=item * B<map_radius>
-
-Set the Yahoo! Map Image API 'radius' property. From the docs :
-
-"How far (in miles) from the specified location to display on the map."
-
-Default is none, and to use a zoom level that maps to the I<accuracy> property
-of a photo.
+A valid MultiMaps developers API key.
 
 =back
 
 =cut
 
+use GD;
 use FileHandle;
 use File::Temp qw (tempfile);
 
@@ -181,7 +175,7 @@ Returns a I<Net::Flickr::Geo> object.
 
 =head2 $obj->mk_pinwin_map_for_photo($photo_id)
 
-Fetch a map using the Yahoo! Map Image API for a geotagged Flickr photo
+Fetch a map using the MultiMaps Image API for a geotagged Flickr photo
 and place a "pinwin" style thumbnail of the photo over the map's marker.
 
 Returns an array of arrays  (kind of pointless really, but at least consistent).
@@ -228,80 +222,45 @@ sub fetch_map_image {
 
         # 
 
-        my $appid = $self->divine_option("yahoo.appid");
+        my $api_key = $self->divine_option("multimap.api_key");
 
         my $h = $self->divine_option("pinwin.map_height", 1024);
         my $w = $self->divine_option("pinwin.map_width", 1024);
 
-        my $ua  = LWP::UserAgent->new();
-        my $url = "http://local.yahooapis.com/MapsService/V1/mapImage?image_width=" . $w . "&image_height=" . $h . "&appid=" . $appid . "&latitude=" . $lat . "&longitude=" . $lon;
+        # 
 
-        if (my $r = $self->divine_option("yahoo.map_radius")){
-                $url .= "&radius=$r";
-        }
+        my %args = (
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'zoomFactor' => $acc,
+                    'width' => $w,
+                    'height' => $h,
+                   );
 
-        else {
-                my $z = $self->flickr_accuracy_to_zoom($acc);
-                $z = $self->divine_option("pinwin.zoom", $z);
-                $url .= "&zoom=$z";
-        }
+        my $uri = URI->new("http://developer.multimap.com");
+        $uri->path("API/map/1.2/" . $api_key);
+        $uri->query_form(%args);
 
-        $self->log()->info("fetch yahoo map : $url");
+        my $url = $uri->as_string();        
+        $self->log()->info("fetch multimap : $url");
 
-        my $req = HTTP::Request->new(GET => $url);
-        my $res = $ua->request($req);
+        #
 
-        if (! $res->is_success()){
-                $self->log()->error("failed to retrieve yahoo map : " . $res->code());
-                return 0;
-        }
-
-        my $xml = $self->_parse_results_xml($res);
-
-        if (! $xml){
-                $self->log()->error("failed to parse yahoo api response");
-                return 0;
-        }
-        
-        my $map = $xml->findvalue("/Result");
-        my $path = $self->simple_get($map, $self->mk_tempfile(".png"));
+        my $path = $self->simple_get($url, $self->mk_tempfile(".png"));
 
         return {
-                'url' => $map,
+                'url' => $url,
                 'path' => $path,
                };
 }
 
-sub flickr_accuracy_to_zoom {
-        my $self = shift;
-        my $acc = shift;
-
-        my %map = (1 => 12,
-                   2 => 12,
-                   3 => 12,
-                   4 => 11,
-                   5 => 10,
-                   6 => 9,
-                   7 => 8,
-                   8 => 7,
-                   9 => 6,
-                   10 => 5,
-                   12 => 4,
-                   13 => 3,
-                   14 => 2,
-                   15 => 1,
-                   16 => 1);
-
-        return $map{$acc};
-}
-
 =head1 VERSION
 
-0.5
+0.6
 
 =head1 DATE
 
-$Date: 2008/02/24 18:05:18 $
+$Date: 2008/02/24 18:18:36 $
 
 =head1 AUTHOR
 
@@ -317,13 +276,16 @@ patches or cluebats...
 
 =head1 NOTES
 
+This still needs some loving to hide the MultiMap markers that are included with the map
+image. It's on the list...
+
 All uploads to Flickr are marked with a content-type of "other".
 
 =head1 SEE ALSO
 
 L<Net::Flickr::Geo>
 
-L<http://developer.yahoo.com/maps/rest/V1/mapImage.html>
+L<http://www.multimap.com/share/documentation/openapi/1.2/web_service/staticmaps.htm>
 
 =head1 BUGS
 

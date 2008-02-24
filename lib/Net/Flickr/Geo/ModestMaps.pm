@@ -1,5 +1,5 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.24 2008/01/27 21:51:02 asc Exp $
+# $Id: ModestMaps.pm,v 1.27 2008/02/24 18:05:18 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
@@ -84,7 +84,7 @@ Tools for working with geotagged Flickr photos and the Modest Maps ws-pinwin HTT
 Options are passed to Net::Flickr::Backup using a Config::Simple object or
 a valid Config::Simple config file. Options are grouped by "block".
 
-=head2 flick
+=head2 flickr
 
 =over 4
 
@@ -433,7 +433,8 @@ sub mk_poster_map_for_photoset {
 
         my %urls = ();
         my @markers = ();
-        
+        my @poly = ();
+
         foreach my $ph (@$photos){
 
                 my $id = $ph->getAttribute("id");
@@ -451,6 +452,8 @@ sub mk_poster_map_for_photoset {
                 my $lat = $ph->getAttribute("latitude");
                 my $lon = $ph->getAttribute("longitude");
 
+                push @poly, "$lat,$lon";
+
                 if ((! defined($sw_lat)) || ($lat < $sw_lat)){
                     $sw_lat = $lat;
                 }
@@ -467,7 +470,7 @@ sub mk_poster_map_for_photoset {
                     $ne_lon = $lon;
                 }
 
-                push @markers, "$id,$lat,$lon,$w,$h";
+                push @markers, "$id,$lat,$lon"; #,$w,$h";
         }
 
         my $bbox = "$sw_lat,$sw_lon,$ne_lat,$ne_lon";
@@ -479,12 +482,13 @@ sub mk_poster_map_for_photoset {
         # @markers = splice(@markers, 0, 3);
 
         my %mm_args = (
-                    'provider' => $provider,
-                    'method' => $method,
-                    'bleed' => $bleed,
-                    'adjust' => $adjust,
-                    'bbox' => $bbox,
-                    'marker' => \@markers,
+                       'provider' => $provider,
+                       'method' => $method,
+                       'bleed' => $bleed,
+                       'adjust' => $adjust,
+                       'bbox' => $bbox,
+                       # 'polyline' => join(":", @poly),
+                       'marker' => \@markers,
                    );
 
         if ($method eq "extent"){
@@ -500,6 +504,10 @@ sub mk_poster_map_for_photoset {
                 $mm_args{'filter'} = $filter;
         }
 
+        if (my $convex = $self->divine_option("modestmaps.convex")){
+                $mm_args{'convex'} = $convex;
+        }
+
         $self->log()->info(Dumper(\%mm_args));
 
         my $map_data  = $self->fetch_modestmap_image(\%mm_args);
@@ -507,6 +515,8 @@ sub mk_poster_map_for_photoset {
         if (! $map_data){
                 return undef;
         }
+
+	# return $map_data;
 
         #
         # place the markers
@@ -848,7 +858,7 @@ sub place_marker_images {
 
 =head1 DATE
 
-$Date: 2008/01/27 21:51:02 $
+$Date: 2008/02/24 18:05:18 $
 
 =head1 AUTHOR
 
@@ -870,23 +880,11 @@ All uploads to Flickr are marked with a content-type of "other".
 
 =head1 SEE ALSO
 
-L<Net::Flickr::API>
+L<Net::Flickr::Geo>
 
-L<http://developer.yahoo.com/maps/rest/V1/mapImage.html>
-
-L<http://modestmaps.mapstraction.com/>
+L<http://modestmaps.com/>
 
 L<http://mike.teczno.com/notes/oakland-crime-maps/IX.html>
-
-L<http://www.aaronland.info/weblog/2007/07/28/trees/#delmaps_pm>
-
-L<http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo>
-
-L<http://www.aaronland.info/weblog/2007/06/08/pynchonite/#nfg_mm>
-
-L<http://flickr.com/photos/straup/sets/72157600321286227/>
-
-L<http://www.flickr.com/help/filters/>
 
 =head1 BUGS
 

@@ -1,5 +1,5 @@
 # -*-cperl-*-
-# $Id: modestmaps_mk_pinwin_map,v 1.2 2008/02/16 18:40:12 asc Exp $
+# $Id: googlemaps_mk_pinwin_map,v 1.1 2008/02/24 18:00:56 asc Exp $
 
 use strict;
 
@@ -7,7 +7,7 @@ use Config::Simple;
 use Getopt::Std;
 
 use Log::Dispatch::Screen;
-use Net::Flickr::Geo::ModestMaps;
+use Net::Flickr::Geo::GoogleMaps;
 
 {
         &main();
@@ -21,12 +21,10 @@ sub main {
 
         my $cfg = Config::Simple->new($opts{'c'});
 
-        $cfg->param("pinwin.photo_size", "Medium");
-        $cfg->param("modestmaps.filter", "atkinson");
-        $cfg->param("modestmaps.zoom", 17);
-        $cfg->param("modestmaps.bleed", 1);
+        $cfg->param("pinwin.map_height", 512);
+        $cfg->param("pinwin.map_width", 512);
         
-        my $fl = Net::Flickr::Geo::ModestMaps->new($cfg);
+        my $fl = Net::Flickr::Geo::GoogleMaps->new($cfg);
         $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
 
         my $map = $fl->mk_pinwin_map_for_photo($opts{'i'});

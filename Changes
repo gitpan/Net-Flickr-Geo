@@ -6,9 +6,23 @@
 @prefix asc:     <http://aaronland.info/ns/changefile/> .
                                      
 <>
-        dc:identifier           "$Id: Changes,v 1.6 2008/01/27 17:18:17 asc Exp $" ;
+        dc:identifier           "$Id: Changes,v 1.8 2008/02/24 18:05:18 asc Exp $" ;
         dc:description          "Changes for Net::Flickr::Geo.pm" ;
         dcterms:references      <http://aaronland.info/perl/net/flickr/geo/> .
+
+<http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.6.tar.gz>
+        dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
+        dcterms:replaces    <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.5.tar.gz> ;
+
+        doap:Version    [
+                        doap:revision     "0.6" ;
+                        doap:created      "2008-02-24" ;
+                        ];
+        asc:changes     [
+                        asc:addition      "Added N:F:G::MultiMap provider" ;  
+                        asc:addition      "Added N:F:G::GoogleMaps provider" ;  
+        	        asc:update        "Moved 'modify_map' in to N:F:Geo" ;
+                        ] .
 
 <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.5.tar.gz>
         dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;

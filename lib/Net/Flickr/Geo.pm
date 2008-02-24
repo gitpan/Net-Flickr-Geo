@@ -5,7 +5,7 @@ use strict;
 package Net::Flickr::Geo;
 use base qw (Net::Flickr::API);
 
-$Net::Flickr::Geo::VERSION = '0.5';
+$Net::Flickr::Geo::VERSION = '0.6';
 
 =head1 NAME 
 
@@ -100,6 +100,46 @@ Fetch maps using the Yahoo! Maps Image API :
  foreach my $data (@$map){
         $fl->log()->info("wrote image/map to $data->[0]");
  }
+
+=head2 Google Maps
+
+Fetch maps using the Google Maps Static Maps API : 
+
+ #
+ # Simple
+ #
+
+ my %opts = ();
+ getopts('c:i:', \%opts);
+
+ my $cfg = Config::Simple->new($opts{'c'});
+
+ my $fl = Net::Flickr::Geo::GoogleMaps->new($cfg);
+ $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
+
+ $cfg->param("google.map_type", "mobile");
+
+ my $map = $fl->mk_pinwin_map_for_photo($opts{'i'});
+ $fl->log()->info("wrote map to $map->[0]->[0]");
+
+=head2 MultiMaps
+
+Fetch maps using the MultiMap Static Maps API : 
+
+ #
+ # Simple
+ #
+
+ my %opts = ();
+ getopts('c:i:', \%opts);
+
+ my $cfg = Config::Simple->new($opts{'c'});
+
+ my $fl = Net::Flickr::Geo::MultiMaps->new($cfg);
+ $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
+
+ my $map = $fl->mk_pinwin_map_for_photo($opts{'i'});
+ $fl->log()->info("wrote map to $map->[0]->[0]");
 
 =head1 IMPORTANT
 
@@ -506,6 +546,90 @@ sub load_pinwin {
         return $self->{'__pinwin'};
 }
 
+sub modify_map {
+        my $self = shift;
+        my $ph = shift;
+
+        my $map_data = shift;
+        my $thumb_data = shift;
+        my $out = shift;
+
+        $out ||= $self->mk_tempfile(".png");
+
+        my $pinwin = $self->load_pinwin();
+
+        #
+
+        my $truecolour = 1;
+
+        use GD;
+        my $pw = GD::Image->newFromPng($pinwin, $truecolour);
+        $pw->alphaBlending(0);
+        $pw->saveAlpha(1);
+        
+        my $th = GD::Image->newFromJpeg($thumb_data->{'path'});
+        $th->alphaBlending(0);
+        $th->saveAlpha(1);
+
+        # place the thumb on the pinwin
+
+        $pw->copy($th, 11, 10, 0, 0, 75, 75);
+
+        #
+        # so so wrong but for the life of me I can't figure
+        # out why the transparency for the pinwin is not
+        # preserved below...
+        #
+
+        my $pin = $self->mk_tempfile(".png");
+        my $fh = FileHandle->new(">$pin");
+
+        binmode($fh);
+        $fh->print($pw->png(0));
+        $fh->close();
+
+        my $h = $self->divine_option("pinwin.map_height", 1024);
+        my $w = $self->divine_option("pinwin.map_width", 1024);
+
+        my $x = int($w / 2) - 28;
+        my $y = int($h / 2) - 134;
+        
+        my $cmd = "composite -quality 100 -geometry +" . $x . "+" . $y . " $pin $map_data->{'path'} $out";
+
+        if (system($cmd)){
+                $self->log()->error("failed to modify map ($cmd) , $!");
+                return;
+        }
+
+        return $out;
+
+        #
+        # we now return you to your regular programming which doesn't work...
+        #
+
+        # place the pinwin on the map
+
+        my $map = GD::Image->newFromPng($map_data->{'path'}, $truecolour);
+        $map->alphaBlending(0);
+        $map->saveAlpha(1);
+
+        # fix me!
+        # why doesn't the alpha in $pw get preserved
+
+        $map->copy($pw, $x, $y, 0, 0, 159, 146);
+        
+        #
+
+        $self->log()->info("save as $out");
+        my $f = FileHandle->new(">$out");
+
+        binmode($fh);
+        $f->print($map->png(0));
+        $f->close();
+
+        return $out;
+}
+
 sub DESTROY {
         my $self = shift;
 
@@ -519,11 +643,11 @@ sub DESTROY {
 
 =head1 VERSION
 
-0.5
+0.6
 
 =head1 DATE
 
-$Date: 2008/01/27 21:52:48 $
+$Date: 2008/02/24 18:18:36 $
 
 =head1 AUTHOR
 
@@ -539,7 +663,11 @@ L<Net::Flickr::API>
 
 L<http://developer.yahoo.com/maps/rest/V1/mapImage.html>
 
-L<http://modestmaps.mapstraction.com/>
+L<http://www.multimap.com/share/documentation/openapi/1.2/web_service/staticmaps.htm>
+
+L<http://code.google.com/apis/maps/documentation/staticmaps/index.html>
+
+L<http://modestmaps.com/>
 
 L<http://mike.teczno.com/notes/oakland-crime-maps/IX.html>
 
