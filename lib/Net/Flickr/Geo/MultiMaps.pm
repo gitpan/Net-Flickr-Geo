@@ -1,10 +1,10 @@
 use strict;
-# $Id: MultiMaps.pm,v 1.2 2008/02/24 18:18:36 asc Exp $
+# $Id: MultiMaps.pm,v 1.4 2008/03/17 15:57:46 asc Exp $
 
 package Net::Flickr::Geo::MultiMaps;
 use base qw (Net::Flickr::Geo);
 
-$Net::Flickr::Geo::MultiMaps::VERSION = '0.6';
+$Net::Flickr::Geo::MultiMaps::VERSION = '0.65';
 
 =head1 NAME
 
@@ -141,6 +141,27 @@ By default, the object will try to map the (Flickr) accuracy to the correspondin
 zoom level of the Modest Maps provider you have chosen. If this option is defined
 then it will be used as the zoom level regardless of what Flickr says.
 
+=item * B<skip_photos>
+
+Int (or array reference of ints)
+
+Used by I<photoset> related object methods, a list of photos to exclude from the list
+returned by the Flickr API.
+
+=item * B<skip_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must B<not> have if
+they are to be included in the final output.
+
+=item * B<ensure_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must have if
+they are to be included in the final output.
+
 =head2 multimap
 
 =over 4
@@ -256,11 +277,11 @@ sub fetch_map_image {
 
 =head1 VERSION
 
-0.6
+0.65
 
 =head1 DATE
 
-$Date: 2008/02/24 18:18:36 $
+$Date: 2008/03/17 15:57:46 $
 
 =head1 AUTHOR
 

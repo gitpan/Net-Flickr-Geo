@@ -1,6 +1,6 @@
 ---
 name: Net-Flickr-Geo
-version: 0.6
+version: 0.65
 author:
   - 'Aaron Straup Cope  E<lt>ascope@cpan.orgE<gt>'
 abstract: tools for working with geotagged Flickr photos
@@ -25,20 +25,22 @@ build_requires:
 provides:
   Net::Flickr::Geo:
     file: lib/Net/Flickr/Geo.pm
-    version: 0.6
+    version: 0.65
   Net::Flickr::Geo::GoogleMaps:
     file: lib/Net/Flickr/Geo/GoogleMaps.pm
-    version: 0.6
+    version: 0.65
   Net::Flickr::Geo::ModestMaps:
     file: lib/Net/Flickr/Geo/ModestMaps.pm
+    version: 0.65
   Net::Flickr::Geo::MultiMaps:
     file: lib/Net/Flickr/Geo/MultiMaps.pm
-    version: 0.6
+    version: 0.65
   Net::Flickr::Geo::Pinwin:
     file: lib/Net/Flickr/Geo/Pinwin.pm
-    version: 0.5
+    version: 0.65
   Net::Flickr::Geo::YahooMaps:
     file: lib/Net/Flickr/Geo/YahooMaps.pm
+    version: 0.65
 generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

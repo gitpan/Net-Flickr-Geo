@@ -1,8 +1,10 @@
 use strict;
-# $Id: YahooMaps.pm,v 1.17 2008/02/24 18:05:18 asc Exp $
+# $Id: YahooMaps.pm,v 1.20 2008/03/17 15:59:13 asc Exp $
 
 package Net::Flickr::Geo::YahooMaps;
 use base qw (Net::Flickr::Geo);
+
+$Net::Flickr::Geo::YahooMaps::VERSION = '0.65';
 
 =head1 NAME
 
@@ -138,6 +140,27 @@ Int.
 By default, the object will try to map the (Flickr) accuracy to the corresponding
 zoom level of the Modest Maps provider you have chosen. If this option is defined
 then it will be used as the zoom level regardless of what Flickr says.
+
+=item * B<skip_photos>
+
+Int (or array reference of ints)
+
+Used by I<photoset> related object methods, a list of photos to exclude from the list
+returned by the Flickr API.
+
+=item * B<skip_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must B<not> have if
+they are to be included in the final output.
+
+=item * B<ensure_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must have if
+they are to be included in the final output.
 
 =head2 yahoo
 
@@ -297,11 +320,11 @@ sub flickr_accuracy_to_zoom {
 
 =head1 VERSION
 
-0.5
+0.65
 
 =head1 DATE
 
-$Date: 2008/02/24 18:05:18 $
+$Date: 2008/03/17 15:59:13 $
 
 =head1 AUTHOR
 

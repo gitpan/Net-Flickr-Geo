@@ -4,7 +4,7 @@ use strict;
 package Net::Flickr::Geo::GoogleMaps;
 use base qw (Net::Flickr::Geo);
 
-$Net::Flickr::Geo::GoogleMaps::VERSION = '0.6';
+$Net::Flickr::Geo::GoogleMaps::VERSION = '0.65';
 
 =head1 NAME
 
@@ -141,11 +141,32 @@ By default, the object will try to map the (Flickr) accuracy to the correspondin
 zoom level of the Modest Maps provider you have chosen. If this option is defined
 then it will be used as the zoom level regardless of what Flickr says.
 
-=head2 yahoo
+=item * B<skip_photos>
+
+Int (or array reference of ints)
+
+Used by I<photoset> related object methods, a list of photos to exclude from the list
+returned by the Flickr API.
+
+=item * B<skip_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must B<not> have if
+they are to be included in the final output.
+
+=item * B<ensure_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must have if
+they are to be included in the final output.
+
+=head2 google
 
 =over 4
 
-=item * B<appid>
+=item * B<api_key>
 
 A valid Google! developers API key.
 
@@ -282,7 +303,7 @@ sub fetch_map_image {
 
 =head1 VERSION
 
-0.6
+0.65
 
 =head1 DATE
 

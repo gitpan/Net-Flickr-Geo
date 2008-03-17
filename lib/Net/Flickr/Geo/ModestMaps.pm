@@ -1,8 +1,10 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.27 2008/02/24 18:05:18 asc Exp $
+# $Id: ModestMaps.pm,v 1.31 2008/03/17 15:59:13 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
+
+$Net::Flickr::Geo::ModestMaps::VERSION = '0.65';
 
 =head1 NAME
 
@@ -219,10 +221,24 @@ Default is 1239
 
 =item * B<skip_photos>
 
-Int (or array refernce of ints)
+Int (or array reference of ints)
 
 Used by I<photoset> related object methods, a list of photos to exclude from the list
 returned by the Flickr API.
+
+=item * B<skip_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must B<not> have if
+they are to be included in the final output.
+
+=item * B<ensure_tags>
+
+String (or array reference of strings)
+
+Used by I<photoset> related object methods, a list of tags that all photos must have if
+they are to be included in the final output.
 
 =head2 modestmaps
 
@@ -470,7 +486,7 @@ sub mk_poster_map_for_photoset {
                     $ne_lon = $lon;
                 }
 
-                push @markers, "$id,$lat,$lon"; #,$w,$h";
+                push @markers, "$id,$lat,$lon,$w,$h";
         }
 
         my $bbox = "$sw_lat,$sw_lon,$ne_lat,$ne_lon";
@@ -854,11 +870,11 @@ sub place_marker_images {
 
 =head1 VERSION
 
-0.5
+0.65
 
 =head1 DATE
 
-$Date: 2008/02/24 18:05:18 $
+$Date: 2008/03/17 15:59:13 $
 
 =head1 AUTHOR
 

@@ -1,5 +1,5 @@
 # -*-cperl-*-
-# $Id: modestmaps_mk_pinwin_map,v 1.2 2008/02/16 18:40:12 asc Exp $
+# $Id: modestmaps_mk_pinwin_map,v 1.3 2008/03/16 20:14:42 asc Exp $
 
 use strict;
 
@@ -21,7 +21,7 @@ sub main {
 
         my $cfg = Config::Simple->new($opts{'c'});
 
-        $cfg->param("pinwin.photo_size", "Medium");
+        $cfg->param("pinwin.photo_size", "Original");
         $cfg->param("modestmaps.filter", "atkinson");
         $cfg->param("modestmaps.zoom", 17);
         $cfg->param("modestmaps.bleed", 1);

@@ -5,7 +5,7 @@ use strict;
 package Net::Flickr::Geo;
 use base qw (Net::Flickr::API);
 
-$Net::Flickr::Geo::VERSION = '0.6';
+$Net::Flickr::Geo::VERSION = '0.65';
 
 =head1 NAME 
 
@@ -298,7 +298,7 @@ sub collect_photos_for_set {
 
         my $res = $self->api_call({'method' => 'flickr.photosets.getPhotos',
                                    'args' => {'photoset_id' => $set_id,
-                                              'extras' => 'geo, machine_tags'}});
+                                              'extras' => 'geo, machine_tags, tags'}});
 
         if (! $res){
                 return undef;
@@ -307,20 +307,32 @@ sub collect_photos_for_set {
         my %ihasamapz = ();
         my @photos = ();
 
-        my $skip = $self->divine_option("pinwin.skip_photos");
+        my $skip_ids = $self->divine_option("pinwin.skip_photos");
+        my $ensure_tags = $self->divine_option("pinwin.ensure_tags");
+        my $skip_tags = $self->divine_option("pinwin.skip_tags");
 
-        if (($skip) && (ref($skip) ne 'ARRAY')){
-                $skip = [$skip];
+        if (($skip_ids) && (ref($skip_ids) ne 'ARRAY')){
+                $skip_ids = [$skip_ids];
+        }
+
+        if (($ensure_tags) && (ref($ensure_tags) ne 'ARRAY')){
+                $ensure_tags = [$ensure_tags];
+        }
+
+        if (($skip_tags) && (ref($skip_tags) ne 'ARRAY')){
+                $skip_tags = [$skip_tags];
         }
 
         foreach my $ph ($res->findnodes("/rsp/photoset/photo")){
 
                 my $id = $ph->getAttribute("id");
 
-                if (($skip) && (grep /$id/, @$skip)){
+                if (($skip_ids) && (grep /$id/, @$skip_ids)){
                         $self->log()->info("photo id $id excluded, skipping");
                         next;
                 }
+
+                # 
 
                 my $mt = $ph->getAttribute("machine_tags");
 
@@ -342,6 +354,42 @@ sub collect_photos_for_set {
                 if (! $ph->getAttribute("latitude")){
                         $self->log()->info("photo id $id has no geo information, skipping");
                         next;
+                }
+
+                if ($ensure_tags){
+                        my $has_tag = 0;
+                        my $tags = $ph->getAttribute("tags");
+
+                        foreach my $t (@$ensure_tags){
+                                if ($tags =~ /\b$t\b/){
+                                        $has_tag = 1;
+                                        last;
+                                }
+                        }
+
+                        if (! $has_tag){
+                                $self->log()->info("photo id $id does not contain required tags : " . join(";", @$ensure_tags));
+                                next;
+                        }
+                        
+                }
+
+                if ($skip_tags){
+
+                        my $has_tag = 0;
+                        my $tags = $ph->getAttribute("tags");
+
+                        foreach my $t (@$skip_tags){
+                                if ($tags =~ /\b$t\b/){
+                                        $has_tag = 1;
+                                        last;
+                                }
+                        }
+
+                        if ($has_tag){
+                                $self->log()->info("photo id $id has skippable tags : " . join(";", @$skip_tags));
+                                next;
+                        }
                 }
 
                 push @photos, $ph;
@@ -643,11 +691,11 @@ sub DESTROY {
 
 =head1 VERSION
 
-0.6
+0.65
 
 =head1 DATE
 
-$Date: 2008/02/24 18:18:36 $
+$Date: 2008/03/17 05:37:07 $
 
 =head1 AUTHOR
 
