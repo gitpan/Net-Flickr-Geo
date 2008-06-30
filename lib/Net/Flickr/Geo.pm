@@ -5,7 +5,7 @@ use strict;
 package Net::Flickr::Geo;
 use base qw (Net::Flickr::API);
 
-$Net::Flickr::Geo::VERSION = '0.65';
+$Net::Flickr::Geo::VERSION = '0.7';
 
 =head1 NAME 
 
@@ -172,6 +172,8 @@ sub init {
         if (! $self->SUPER::init($args)){
                 return undef;
         }
+
+        $self->{'__cache'} = {'geo_perms' => {}};
 
         return 1;
 }
@@ -570,7 +572,9 @@ sub divine_option {
         my $opt = shift;
         my $default = shift;
 
-        if (my $v = $self->{'cfg'}->param($opt)){
+        my $v = $self->{'cfg'}->param($opt);
+
+        if (defined($v)){
                 $self->log()->info("divine by config : $opt => $v");
                 return $v;
         }
@@ -678,6 +682,63 @@ sub modify_map {
         return $out;
 }
 
+sub ensure_geo_perms {
+        my $self = shift;
+        my $photo_id = shift;
+        my $require = shift;
+
+        if ($require eq "all"){
+                return 1;
+        }
+
+        # 
+
+        my $key = "$photo_id-$require";
+
+        if (exists($self->{'__cache'}->{'geo_perms'}->{$key})){
+                return $self->{'__cache'}->{'geo_perms'}->{$key};
+        }
+
+        #
+
+        $self->log()->info("ensure geo permissions : $require");
+
+        my $perms = $self->api_call({'method' => 'flickr.photos.geo.getPerms', 'args' => {'photo_id' => $photo_id}});
+        my $ok = 0;
+
+        if ($require eq "public"){
+                $ok = $perms->findvalue("/rsp/perms/\@ispublic");
+        }
+
+        elsif ($require eq "contact"){
+                $ok = $perms->findvalue("/rsp/perms/\@iscontact");
+        }
+
+        elsif ($require eq "friend"){
+                $ok = $perms->findvalue("/rsp/perms/\@isfriend");
+        }
+
+        elsif ($require eq "family"){
+                $ok = $perms->findvalue("/rsp/perms/\@isfamily");
+        }
+
+        elsif ($require eq "friend or family"){
+
+                if ($perms->findvalue("/rsp/perms/\@isfriend")){
+                        $ok = 1;
+                }
+
+                else {
+                        $ok = $perms->findvalue("/rsp/perms/\@isfamily");
+                }
+        }
+
+        else { }
+
+        $self->{'__cache'}->{'geo_perms'}->{$key} = $ok;
+        return $ok;
+}
+
 sub DESTROY {
         my $self = shift;
 
@@ -691,11 +752,11 @@ sub DESTROY {
 
 =head1 VERSION
 
-0.65
+0.7
 
 =head1 DATE
 
-$Date: 2008/03/17 05:37:07 $
+$Date: 2008/06/29 23:35:09 $
 
 =head1 AUTHOR
 

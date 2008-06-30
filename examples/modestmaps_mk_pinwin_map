@@ -1,5 +1,5 @@
 # -*-cperl-*-
-# $Id: modestmaps_mk_pinwin_map,v 1.3 2008/03/16 20:14:42 asc Exp $
+# $Id: modestmaps_mk_pinwin_map,v 1.5 2008/06/20 16:35:31 asc Exp $
 
 use strict;
 
@@ -22,10 +22,12 @@ sub main {
         my $cfg = Config::Simple->new($opts{'c'});
 
         $cfg->param("pinwin.photo_size", "Original");
+
         $cfg->param("modestmaps.filter", "atkinson");
         $cfg->param("modestmaps.zoom", 17);
         $cfg->param("modestmaps.bleed", 1);
-        
+        $cfg->param("modestmaps.provider", "MICROSOFT_AERIAL");
+
         my $fl = Net::Flickr::Geo::ModestMaps->new($cfg);
         $fl->log()->add(Log::Dispatch::Screen->new('name' => 'scr', min_level => 'debug'));
 

@@ -6,9 +6,25 @@
 @prefix asc:     <http://aaronland.info/ns/changefile/> .
                                      
 <>
-        dc:identifier           "$Id: Changes,v 1.10 2008/03/17 15:59:13 asc Exp $" ;
+        dc:identifier           "$Id: Changes,v 1.13 2008/06/28 23:09:27 asc Exp $" ;
         dc:description          "Changes for Net::Flickr::Geo.pm" ;
         dcterms:references      <http://aaronland.info/perl/net/flickr/geo/> .
+
+<http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.7.tar.gz>
+        dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
+        dcterms:replaces    <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.65.tar.gz> ;
+
+        doap:Version    [
+                        doap:revision     "0.7" ;
+                        doap:created      "2008-06-29" ;
+                        ];
+        asc:changes     [
+        		asc:addition      "Added Modestmaps->mk_cluster_map_for_photo" ;
+        		asc:addition      "Added Modestmaps->mk_historical_cluster_map_for_photo" ;
+        		asc:addition      "Added Modestmaps->mk_cluster_maps_for_photoset" ;
+                        asc:addition      "Added Geo->ensure_geo_perms" ;
+                        asc:bugfix        "Test for an arguments definedness (rather than boolean truth) in Geo->divine_option" ;
+                        ] .
 
 <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.65.tar.gz>
         dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;

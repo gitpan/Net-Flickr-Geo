@@ -1,10 +1,10 @@
 use strict;
-# $Id: YahooMaps.pm,v 1.20 2008/03/17 15:59:13 asc Exp $
+# $Id: YahooMaps.pm,v 1.21 2008/06/22 07:04:56 asc Exp $
 
 package Net::Flickr::Geo::YahooMaps;
 use base qw (Net::Flickr::Geo);
 
-$Net::Flickr::Geo::YahooMaps::VERSION = '0.65';
+$Net::Flickr::Geo::YahooMaps::VERSION = '0.7';
 
 =head1 NAME
 
@@ -320,11 +320,11 @@ sub flickr_accuracy_to_zoom {
 
 =head1 VERSION
 
-0.65
+0.7
 
 =head1 DATE
 
-$Date: 2008/03/17 15:59:13 $
+$Date: 2008/06/22 07:04:56 $
 
 =head1 AUTHOR
 

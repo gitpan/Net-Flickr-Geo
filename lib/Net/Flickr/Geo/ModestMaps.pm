@@ -1,10 +1,10 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.31 2008/03/17 15:59:13 asc Exp $
+# $Id: ModestMaps.pm,v 1.57 2008/06/30 00:33:21 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
 
-$Net::Flickr::Geo::ModestMaps::VERSION = '0.65';
+$Net::Flickr::Geo::ModestMaps::VERSION = '0.7';
 
 =head1 NAME
 
@@ -354,6 +354,16 @@ use GD;
 use Imager;
 use URI;
 
+# for clustermaps 
+
+use List::Util qw(min max);
+use Date::Calc qw (Today Add_Delta_Days Delta_Days);
+use Geo::Geotude;
+use Geo::Distance;
+use LWP::Simple;
+use POSIX qw (ceil floor);
+use Image::Size qw(imgsize);
+
 =head1 PACKAGE METHODS
 
 =cut
@@ -366,7 +376,7 @@ Returns a I<Net::Flickr::Geo> object.
 
 # Defined in Net::Flickr::API
 
-=head1 OBJECT METHODS
+=head1 PINWIN MAPS
 
 =cut
 
@@ -403,6 +413,8 @@ ID will be passed as the second element.
 =cut
 
 # Defined in Net::Flickr::Geo
+
+=head1 POSTER MAPS
 
 =head2 $obj->mk_poster_map_for_photoset($set_id)
 
@@ -470,23 +482,21 @@ sub mk_poster_map_for_photoset {
 
                 push @poly, "$lat,$lon";
 
-                if ((! defined($sw_lat)) || ($lat < $sw_lat)){
-                    $sw_lat = $lat;
-                }
+                $sw_lat = min($sw_lat, $lat);
+                $sw_lon = min($sw_lon, $lon);
+                $ne_lat = max($ne_lat, $lat);
+                $ne_lon = max($ne_lon, $lon);
 
-                if ((! defined($ne_lat)) || ($lat > $ne_lat)){
-                    $ne_lat = $lat;
-                }
-
-                if ((! defined($sw_lon)) || ($lon < $sw_lon)){
-                    $sw_lon = $lon;
-                }
-
-                if ((! defined($ne_lon)) || ($lon > $ne_lon)){
-                    $ne_lon = $lon;
-                }
-
-                push @markers, "$id,$lat,$lon,$w,$h";
+                my %args = (
+                            'uid' => $id,
+                            'lat' => $lat,
+                            'lon' => $lon,
+                            'width' => $w,
+                            'height' => $h,
+                           );
+                
+                my $marker = Net::Flickr::Geo::ModestMaps::Marker->new(%args);
+                push @markers, $marker;
         }
 
         my $bbox = "$sw_lat,$sw_lon,$ne_lat,$ne_lon";
@@ -495,7 +505,7 @@ sub mk_poster_map_for_photoset {
         # fetch the actual map
         #
 
-        # @markers = splice(@markers, 0, 3);
+        my $markers_prepped = Net::Flickr::Geo::ModestMaps::MarkerSet->prepare(\@markers);
 
         my %mm_args = (
                        'provider' => $provider,
@@ -503,8 +513,7 @@ sub mk_poster_map_for_photoset {
                        'bleed' => $bleed,
                        'adjust' => $adjust,
                        'bbox' => $bbox,
-                       # 'polyline' => join(":", @poly),
-                       'marker' => \@markers,
+                       'marker' => $markers_prepped,
                    );
 
         if ($method eq "extent"){
@@ -532,10 +541,8 @@ sub mk_poster_map_for_photoset {
                 return undef;
         }
 
-	# return $map_data;
-
         #
-        # place the markers
+        # place the markers (please to refactor me...)
         # 
 
         my @images = ();
@@ -665,27 +672,386 @@ sub crop_poster_map {
                 $offset_y = 0;
         }
 
-        my @files = ();
-
-        foreach my $im (@slices) {
-                my $out = $self->mk_tempfile(".png");
-                $self->log()->info("write slice $out");
-
-                $im->write('file' => $out);
-                push @files, $out;
-        }
+        my @files = map {
+                $self->write_jpeg($im);
+        } @slices;
 
         return \@files;
+}
+
+=head1 CLUSTER MAPS
+
+=head2 $obj->mk_cluster_maps_for_photo($photo_id)
+
+Like poster maps, cluster maps plot many photos in multiple pinwins on a single
+background map image. Unlike poster maps, where you explicitly list all the photos
+to display (by specifying a photo set) cluster maps renders a single photo as its
+principal focus with all the photos with in an (n) kilometer radius of the subject
+photo.
+
+Multiple photos sharing the same latitude and longitude are also clustered together
+and rendered in a single pinwin, whose size and shape is relative to the square
+root of the number of total photos. This helps, in densely photographed areas, to 
+prevent cascading pinwins from rocketing off the map canvas trying to find a suitably
+empty space to avoid overlapping other nearby pinwins.
+
+As of this writing, all the surrounding photos are rendered using their 75x75 pixel
+square thumbnail though this will be a user-configurable option in future releases. 
+The principal photo size can still be set by assigning the I<pinwin.photo_size> config
+variable (the default is I<Medium>).
+
+Cluster maps are not a general purpose interface to the Flickr I<photos.search> 
+method (yet) although there are some flags to limit search results to the principal
+photo's owner or by one or more copyright licenses.
+
+All (except B<method>, discussed below) the usual config options may be set for
+cluster maps. In addition, you may also define the following options :
+
+=over 4
+
+=item * B<clustermap.radius>
+
+Float.
+
+The number of kilometers from I<$photo_id>'s lat/lon in which to perform a
+radial query for other geotagged photos. 
+
+Default is I<1>
+
+=item * B<clustermap.offset>
+
+Int.
+
+The number of days on either side of I<$photo_id>'s "date taken" value with which
+to limit the scope of the query.
+
+Default is I<0>
+
+=item * B<clustermap.only_photo_owner>
+
+Boolean.
+
+Limit all queries to include only photos uploaded by I<$photo_id>'s owner.
+
+Default is I<true>
+
+=item * B<clustermap.force_photo_owner>
+
+Boolean.
+
+Typically used when setting the I<photo_license> to ensure that nearby photos
+uploaded by I<$photo_id>s owner are included. If true, this will cause the code
+to execute the same search twice. The second query will remove any licensing 
+restrictions and enforce that only photos owned by I<$photo_id>'s owner be
+returned. The two result sets will then be merged and sorted by distance from
+the center point.
+
+(Ignored if the I<clustermap.only_photo_owner> is true.)
+
+Default is I<false>
+
+=item * B<photo_license>
+
+String.
+
+A comma-separated list of Flickr license IDs to limit the list of photos returned
+by the I<photos.search> API method.
+
+Default is none.
+
+=item * B<clustermap.geo_perms>
+
+String.
+
+Post search, ensure that all the photos have a minimum set of geo permissions.
+
+Valid options are : "public", "contact", "friend", "family", "friend or family" 
+and "all".
+
+Default is I<all>
+
+=item * B<clustermap.max_photos>
+
+Int.
+
+Although the clustering of photos sharing the same latitude and longitude helps
+cut down on number of pinwins the Modest Maps needs to figure out how to layout
+on the background map, there is still an upper limit after which it (Modest Maps)
+will simply give up.
+
+The exact number is a little hard to say as it is usually a function of how closely
+grouped any number of pinwins (clustered or not) are to each other. Anecdotally,
+anything less than 100 is fine; less than 200 is a toss up; anything after that 
+usually wakes the baby.
+
+Default is I<100>
+
+=item * B<clustermap.max_photos_per_group>
+
+Int.
+
+All of the clusters are grouped by their lat/lon position rounded off to three
+decimal points. You can change this option to set the maximum number of photos
+that can be contained in a single group.
+
+Default is half the value of the I<clustermap.max_photos> parameter.
+
+=back
+
+If either the B<max_photos> or B<max_photos_per_group> is exceeded then another
+search query is initiated, where the radial days offset from I<$photo_id>'s taken
+date is reduced by 10%. If no offset value was set by the user then an initial
+value of 365 is set (meaning that if there are still too many photos after the
+second query it will be reset to 328 days and so on.)
+
+Finally, all cluster maps assume the Modest Maps B<bbox> method. The bounding box
+itself is calcluated using the photos further from the center and is adjusted (in
+size) relative to distance between the south-west and north-east corners.
+
+If the distance is less that 1km, the bounding box will be expanded by .25km; If
+the distance is less than 1.5km, the bounding box will be expanded by .1km; If the
+bounding is less than 2km, the bounding box will be expanded by .1km.
+
+Returns a hash reference containing the URL that was used to request the
+map image, the path to the data that was sent back as well as all of the
+Modest Maps specific headers sent back.
+
+Attribution for the photos is returned in a hash refernce whose key is labeled
+I<attribution> and whose contents are a series of nested hashes mapping marker
+IDs to owners and a list of photos for that marker. For example :
+
+ $response = {
+ 	# lots of other stuff
+        'marker-2561168539' => '1455,4189,1427,2065,75,75',
+        'attribution' => {
+        	'2366199422' => {
+                	'foobar' => ['http://www.flickr.com/photos/foobar/999999'],
+                 }
+	 }
+ }
+
+=cut
+
+sub mk_cluster_map_for_photo {
+        my $self = shift;
+        my $photo_id = shift;
+
+        my ($ph, $ph_marker, $queries) = $self->mk_cluster_map_for_photo_base($photo_id);
+        my ($markers, $bbox);
+
+        # really ?
+
+        if (scalar(@$queries) == 1){
+                ($markers, $bbox) = $self->search_for_cluster_map($queries->[0]);
+        }
+
+        else {
+                ($markers, $bbox) = $self->blended_search_for_cluster_map($queries);
+        }
+
+        # 
+
+        unshift @{$markers}, $ph_marker;
+	return $self->create_cluster_map($markers, $bbox);
+}
+
+=head2 $obj->mk_historical_cluster_map_for_photo($photo_id)
+
+Historical cluster maps are similar to plain old cluster in nature, but not in
+execution. Rather than doing a single query and showing whatever happens to be
+closest to I<$photo_id> historical cluster maps rely on the code making two
+calls to the photos.search each explicitly constrained by a date range.
+
+The first query will ask for photos within (n) days of when the photo was taken;
+the second query will ask for photos within (n) days of today.
+
+The two result sets are then smushed together, sorted by distance to I<$photo_id>
+and clustered in to groups. If the number of photos, or grouped photos, is too
+high then each date range is reduced (the value of offset days is multiplied by 90%
+and rounded down) and the process is repeated until everything fits.
+
+Or something breaks.
+
+Then we make a map!
+
+All the same rules and options that apply for plain old cluster maps are valid
+for historical cluster maps.
+
+=cut
+
+sub mk_historical_cluster_map_for_photo {
+        my $self = shift;
+        my $photo_id = shift;
+
+        my $offset = $self->divine_option("clustermap.offset", 0);
+        my $today = $self->today();
+        my ($before_now, $after_now) = $self->calculate_delta_days($today, $offset);
+
+        my ($ph, $ph_marker, $queries) = $self->mk_cluster_map_for_photo_base($photo_id);
+
+        # tmp array so we don't get stuck in an infinite
+	# loop always creating new queries to modify...
+
+        my @new_queries = ();
+
+        foreach my $query_then (@$queries){
+
+                my %query_now = map {
+                        $_ => $query_then->{$_};
+                } keys %{$query_then};               
+                
+                $query_now{'min_taken_date'} = $before_now;
+                $query_now{'max_taken_date'} = $after_now;
+                
+                push @new_queries, \%query_now;
+        }
+
+        map { push @$queries, $_ } @new_queries;
+
+        my ($markers, $bbox) = $self->blended_search_for_cluster_map($queries);
+        unshift @{$markers}, $ph_marker;
+
+	return $self->create_cluster_map($markers, $bbox);
+}
+
+# shhh...
+
+sub mk_cluster_maps_for_photoset {
+        my $self = shift;
+        my $set_id = shift;
+
+        my $upload = $self->divine_option('pinwin.upload', 0);
+
+        # 
+
+        my $photos = $self->collect_photos_for_set($set_id);
+
+        if (! $photos){
+                return undef;
+        }
+
+        my @maps = ();
+        my @set  = ();
+
+        foreach my $ph (@$photos){
+
+                my $uid = $ph->getAttribute("id");
+                my $map = $self->mk_cluster_map_for_photo($uid);
+
+                if (! $map){
+                        $self->log()->error("failed to generate cluster map for photo #$uid");
+                        next;
+                }
+
+                my @local_res = ($map->{'path'});
+
+                if ($upload){
+                        my $id = $self->upload_map($ph, $map->{'path'});
+
+                        push @local_res, $id;
+                        push @set, $id;
+                        push @set, $ph->getAttribute("id");
+                }
+
+                push @maps, \@local_res;
+        }
+
+        if (($upload) && (scalar(@set))) {
+                $self->api_call({'method' => 'flickr.photosets.editPhotos',
+                                 'args' => {'photoset_id'      => $set_id,
+                                            'primary_photo_id' => $set[0],
+                                            'photo_ids'        => join(",", @set)}});
+        }
+
+        return \@maps;
 }
 
 #
 # not so public
 #
 
+sub create_cluster_map {
+        my $self = shift;
+        my $markers = shift;
+        my $bbox = shift;
+
+        my $mm_args = $self->prepare_modestmaps_args_for_cluster_map($markers, $bbox);
+        my $urls = $self->gather_urls_for_cluster_map($markers);
+
+	my $map_data = $self->create_pinwin_map($mm_args, $urls);
+
+        if (! $map_data){
+                return undef;
+        }
+
+        # 
+
+        $map_data->{'attribution'} = $self->collect_attributions($markers);
+        
+        $self->log()->debug(Dumper($map_data));
+        return $map_data;
+}
+
+sub create_pinwin_map {
+        my $self = shift;
+        my $mm_args = shift;
+        my $img_urls = shift;
+
+        $self->log()->debug(Dumper($mm_args));
+        $self->log()->debug(Dumper($img_urls));
+
+	my $map_data = $self->fetch_modestmap_image($mm_args);
+        
+        if (! $map_data){
+                return undef;
+        }
+        
+        my $out = $self->place_map_images($map_data, $img_urls);
+        $map_data->{'path'} = $out;
+
+	return $map_data;
+}
+
+sub collect_attributions {
+        my $self = shift;
+        my $markers = shift;
+
+        my %attribution = ();
+
+        foreach my $mrk (@$markers){
+                
+                if (! exists($mrk->{'attribution'})){
+                        next;
+                }
+
+                my $uid = $mrk->{'uid'};
+
+                if (ref($mrk->{'attribution'}) ne "ARRAY"){
+                        $attribution{$uid}->{$mrk->{'attribution'}->{'owner'}} = $mrk->{'attribution'}->{'url'};   
+                }
+
+                else {
+                        map { 
+                                
+                                my $owner = $_->{'owner'};
+                                my $url = $_->{'url'};
+                                
+                                $attribution{$uid}->{$owner} ||= [];
+                                push @{$attribution{$uid}->{$owner}}, $url;
+                                
+                        } @{$mrk->{'attribution'}};
+                }
+        } @$markers;
+
+        return \%attribution;
+}
+
 sub fetch_map_image {
         my $self = shift;
         my $ph = shift;
         my $thumb_data = shift;
+
+        # please refactor me...
 
         my $lat = $self->get_geo_property($ph, "latitude");
         my $lon = $self->get_geo_property($ph, "longitude");
@@ -711,33 +1077,36 @@ sub fetch_map_image {
 
         # 
 
-        my @marker = (
-                      'thumbnail',
-                      $lat, $lon,
-                      $thumb_data->{'width'}, $thumb_data->{'height'}
+        my %args = (
+                    'uid' => 'thumbnail',
+                    'lat' => $lat, 
+                    'lon' => $lon,
+                    'width' => $thumb_data->{'width'},
+                    'height' => $thumb_data->{'height'},
                      );
 
+        my $marker = Net::Flickr::Geo::ModestMaps::Marker->new(%args);
 
         my $height = $self->divine_option("pinwin.map_height", 1024);
         my $width = $self->divine_option("pinwin.map_width", 1024);
 
         my %mm_args = (
-                    'provider' => $provider,
-                    'latitude' => $lat,
-                    'longitude' => $lon,
-                    'zoom' => $zoom,
-                    'method' => 'center',
-                    'height' => $height,
-                    'width' => $width,
-                    'bleed' => $bleed,
-                    'marker' => join(",", @marker),
+                       'provider' => $provider,
+                       'latitude' => $lat,
+                       'longitude' => $lon,
+                       'zoom' => $zoom,
+                       'method' => 'center',
+                       'height' => $height,
+                       'width' => $width,
+                       'bleed' => $bleed,
+                       'marker' => $marker,
                    );
 
         if ($filter){
                 $mm_args{'filter'} = $filter;
         }
 
-        $self->log()->info(Dumper(\%mm_args));
+        # $self->log()->info(Dumper(\%mm_args));
         return $self->fetch_modestmap_image(\%mm_args, $out);
 }
 
@@ -852,29 +1221,763 @@ sub place_marker_images {
         foreach my $data (@$markers){
                 my ($mrk_img, $x, $y, $w, $h) = @$data;
                 my $ph = GD::Image->newFromJpeg($mrk_img, $truecolor);
-                $im->copy($ph, $x, $y, 0, 0, $w, $h);
+                
+                eval {
+                        $im->copy($ph, $x, $y, 0, 0, $w, $h);
+                };
+
+                if ($@){
+                        $self->log()->error("picture made GD cry, skipping. $@");
+                }
 
                 unlink($mrk_img);
         }
 
-        my $out = $self->mk_tempfile(".jpg");
+        unlink($map_img);
+
+        return $self->write_jpeg($im);
+}
+
+sub place_map_images {
+        my $self = shift;
+        my $map_data = shift;
+        my $urls = shift;
+
+        my @images = ();
+
+        foreach my $prop (%$map_data){
+
+                if ($prop =~ /^marker-(.*)$/){
+
+                        my $id = $1;
+                        
+                        my $ph_url = $urls->{$id};
+                        my $ph_img = $self->mk_tempfile(".jpg");
+                        
+                        $self->log()->info("fetch $ph_url");
+
+                        if (! $self->simple_get($ph_url, $ph_img)){
+                                $self->log()->error("failed to retrieve $ph_url, $!");
+                                next;
+                        }
+
+                        my @pw_details = split(",", $map_data->{$prop});
+                        my $pw_x = $pw_details[2];
+                        my $pw_y = $pw_details[3];
+                        my $pw_w = $pw_details[4];
+                        my $pw_h = $pw_details[5];
+
+                        push @images, [$ph_img, $pw_x, $pw_y, $pw_w, $pw_h];
+                }
+        }
+
+        return $self->place_marker_images($map_data->{'path'}, \@images);
+}
+
+#
+# search
+#
+
+sub collect_blended_search {
+        my $self = shift;
+        my $queries = shift;
+
+        my $perms = $self->divine_option("clustermap.geo_perms", "all");
+
+        my %unsorted = ();
+        my @possible = ();
+
+	my %seen = ();
+
+        foreach my $q (@$queries){
+
+		my %local_q = ();
+
+		foreach my $k (keys %{$q}){
+			if ($k =~ /^__/){
+				next;
+			}
+
+        		$local_q{$k} = $q->{$k};
+		}
+
+                my $search = $self->api_call({'method' => 'flickr.photos.search', 'args' => \%local_q});
+
+                foreach my $ph ($search->findnodes("/rsp/photos/photo")){
+
+			my $uid = $ph->getAttribute("id");
+
+                        if (exists($seen{$uid})){
+                                next;
+                        }
+
+                        $seen{$uid} ++;
+
+			if (exists($q->{'__exclude'})){
+				if (grep /$uid/, @{$q->{'__exclude'}}){
+					$self->log()->info("exclude photo #$uid from blended search");
+					next;
+				}
+			}
+
+                        if (! $self->ensure_geo_perms($uid, $perms)){
+                                next;
+                        }
+
+                        my $geo = Geo::Distance->new();
+                        my $dist = $geo->distance("kilometer", $q->{'lon'}, $q->{'lat'}, $ph->getAttribute("longitude"), $ph->getAttribute("latitude"));
+
+                        $unsorted{$dist} ||= [];
+                        push @{$unsorted{$dist}}, $ph;
+                }
+        }
+
+        foreach my $dist (sort {$a <=> $b} keys %unsorted){
+                map { push @possible, $_ } @{$unsorted{$dist}};
+        }
+
+        return \@possible;
+}
+
+#
+# marker methods
+#
+
+sub gather_urls_for_cluster_map {
+        my $self = shift;
+        my $markers = shift;
+
+        my %urls = map {
+                $_->{'uid'} => $_->{'url'};
+        } @$markers;
+
+	return \%urls;
+}
+
+#
+# cluster methods (photo)
+#
+
+sub mk_cluster_map_for_photo_base {
+        my $self = shift;
+        my $photo_id = shift;
+
+        my $ph_size = $self->divine_option("pinwin.photo_size", "Medium");
+        my $r = $self->divine_option("clustermap.radius", 1);
+        my $offset = $self->divine_option("clustermap.offset", 0);
+        my $own = $self->divine_option("clustermap.only_photo_owner", 1);
+        my $force_own = $self->divine_option("clustermap.force_photo_owner", 0);
+        my $license = $self->divine_option("clustermap.photo_license", "*");
+
+        # 
+
+        my $ph = $self->api_call({'method' => 'flickr.photos.getInfo', 'args' => {'photo_id' => $photo_id}});
+        $ph = ($ph->findnodes("/rsp/photo"))[0];
+
+        my $owner = $ph->findvalue("owner/\@nsid");
+
+        my $lat = $self->get_geo_property($ph, "latitude");
+        my $lon = $self->get_geo_property($ph, "longitude");
+
+        my $sizes = $self->api_call({'method' => 'flickr.photos.getSizes', 'args' => {'photo_id' => $photo_id}});
+        
+        my $h = $sizes->findvalue("/rsp/sizes/size[\@label='Medium']/\@height");
+        my $w = $sizes->findvalue("/rsp/sizes/size[\@label='Medium']/\@width");
+        
+        my $url = sprintf("http://farm%d.static.flickr.com/%d/%s_%s.jpg",
+                          $ph->getAttribute("farm"),
+                          $ph->getAttribute("server"),
+                          $ph->getAttribute("id"),
+                          $ph->getAttribute("secret"));
+
+        my %args = (
+                    'uid' => $photo_id,
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'width' => $w,
+                    'height' => $h,
+                    'url' => $url,
+                   );
+                
+        if ($license){
+                my $username = $ph->findvalue("owner/\@username");
+                my $ph_url = $ph->findvalue("urls/url[\@type='photopage']");
+                $args{'attribution'} = {'owner' => $username, 'url' => $ph_url};
+        }
+
+        my $ph_marker = Net::Flickr::Geo::ModestMaps::Marker->new(%args);
+
+        #
+        # Basic search criteria
+        #
+
+        my %query = (
+                     'lat' => $lat,
+                     'lon' => $lon,
+                     'radius' => $r,
+                     'extras' => 'geo,date_taken',
+                     '__exclude' => [$ph->getAttribute('id')],
+                    );
+
+        if ($license ne "*"){
+                $query{'license'} = $license;
+                $query{'extras'} .= ",owner_name";
+        }
+
+        if ($own){
+                $query{'user_id'} = $owner;
+        }
+
+        if ($offset){
+                my $dt = $ph->findvalue("dates/\@taken");
+                my ($before, $after) = $self->calculate_delta_days($dt, $offset);
+
+                $query{'min_taken_date'} = $before;
+                $query{'max_taken_date'} = $after;
+        }
+
+        # 
+
+        my @queries = (\%query);
+
+        #
+
+        if ((! $own) && ($force_own) && (exists($query{'license'}))){
+
+                $self->log()->info("forcing photo owner photos, requires a blended search");
+
+                my %query_me = map {
+                        $_ => $query{$_};
+                } keys %query;
+
+                delete($query_me{'license'});
+                $query_me{'user_id'} = $ph->findvalue("owner/\@nsid");
+
+                push @queries, \%query_me;
+        }
+
+        #
+
+        return ($ph, $ph_marker, \@queries);
+}
+
+#
+# cluster methods (markers)
+#
+
+sub markers_for_clusters {
+        my $self = shift;
+        my $clusters = shift;
+
+        my @markers = ();
+
+        foreach my $key (keys %{$clusters}){
+
+                if (scalar(@{$clusters->{$key}}) == 1){
+                        push @markers, $clusters->{$key}->[0];
+                        next;
+                }
+
+                my @images = ();
+                my @attribution = ();
+
+                my ($uid, $lat, $lon);
+
+                foreach my $mrk (@{$clusters->{$key}}){
+
+                        if (! exists($mrk->{'url'})){
+                                next;
+                        }
+
+                        $uid = $mrk->{'uid'};
+                        $lat = $mrk->{'lat'};
+                        $lon = $mrk->{'lon'};
+
+                        push @images, $mrk->{'url'};
+
+                        if (exists($mrk->{'attribution'})){
+                                push @attribution, $mrk->{'attribution'};
+                        }
+                }
+
+                # reassign $w,$h
+
+                my $stacked = $self->stack_images(\@images);
+                my ($w, $h) = imgsize($stacked);
+
+                my $url = "file://" . $stacked;
+
+                my %args = ('uid' => $uid,
+                            'lat' => $lat,
+                            'lon' => $lon,
+                            'width' => $w,
+                            'height' => $h,
+                            'url' => $url,
+                            'attribution' => \@attribution,
+                           );
+
+                my $marker = Net::Flickr::Geo::ModestMaps::Marker->new(%args);
+                push @markers, $marker;
+        }
+
+        return \@markers;
+}
+
+#
+# cluster methods (search)
+#
+
+sub search_for_cluster_map {
+        my $self = shift;
+        my $query = shift;
+        return $self->blended_search_for_cluster_map([$query]);
+}
+
+sub blended_search_for_cluster_map {
+        my $self = shift;
+        my $queries = shift;
+
+        my $max_photos = $self->divine_option("clustermap.max_photos", 100);
+        my $max_grouped = $self->divine_option("clustermap.max_photos_per_group", int($max_photos / 2));
+        my $offset = $self->divine_option("clustermap.offset", 0);
+
+        my $photos = undef;
+        my $clusters = undef;
+        my $groups = undef;
+        my $bbox = undef;
+
+        my $ok = 0;
+
+        my @pts = ();
+
+        foreach my $q (@$queries){
+                push @pts, [$q->{'lat'}, $q->{'lon'}];
+        }
+
+        while (! $ok){
+
+                $self->log()->debug("new blended search");
+		$photos = $self->collect_blended_search($queries);
+
+		my $cnt_photos = scalar(@$photos);
+                my $cnt_groups = 0;
+                my $cnt_clusters = 0;
+                my $cnt_grouped = 0;
+
+                my $local_ok = ($cnt_photos <= $max_photos) ? 1 : 0;
+
+                $self->log()->info("search returns $cnt_photos photos (max : $max_photos)");
+
+                if ($local_ok){
+                        ($clusters, $groups, $bbox) = $self->cluster_blended_search($photos, \@pts);
+
+                        $cnt_groups = scalar(keys %$groups);
+                        $cnt_clusters = scalar(keys %$clusters);
+                       
+                        $cnt_grouped = map { max($cnt_grouped, $_) } values %$groups;
+
+                        $self->log()->info("search returned $cnt_clusters clustered photos, across $cnt_groups groups (max photos/group : $cnt_grouped)");
+                        $local_ok = ($cnt_grouped <= $max_grouped) ? 1 : 0;
+                }
+
+                if ($local_ok){
+                        $ok = 1;
+                        last;
+                }
+
+                # reset
+
+                $self->log()->info("too many photos adjusting offset and radius so as not to make modestmaps cry");
+
+                $offset = ($offset) ? floor($offset * .9) : 365;
+
+                if ($offset <= 0){
+                        $self->log()->error("offset equals zero, eyes turning black");
+                        return undef;
+                }
+
+                foreach my $q (@{$queries}){
+
+                        if ((! $q->{'min_taken_date'}) || (! $q->{'max_taken_date'})){
+
+                                my $today = $self->today();
+                                my ($min, $max) = $self->calculate_delta_days($today, $offset);
+
+                                $q->{'min_taken_date'} = $min;
+                                $q->{'max_taken_date'} = $max;
+                        }
+
+                        else {
+
+                                $q->{'min_taken_date'} =~ /(\d{4})-(\d{2})-(\d{2})/;
+                                my ($y1, $m1, $d1) = ($1, $2, $3);
+
+                                $q->{'max_taken_date'} =~ /(\d{4})-(\d{2})-(\d{2})/;
+                                my ($y2, $m2, $d2) = ($1, $2, $3);
+                                
+                                my $delta = Delta_Days($y1, $m1, $d1, $y2, $m2, $d2);
+                                my @new = Add_Delta_Days($y1, $m1, $d1, int($delta / 2));
+                                
+                                my $start = sprintf("%04d-%02d-%02d", @new);
+                                $self->log()->info("reset start date to $start with an offset of $offset days");
+                                
+                                my ($min, $max) = $self->calculate_delta_days($start, $offset);
+                                
+                                $self->log()->info("reset min taken date from $q->{'min_taken_date'} to $min");
+                                $self->log()->info("reset min taken date from $q->{'max_taken_date'} to $max");
+                                
+                                $q->{'min_taken_date'} = $min;
+                                $q->{'max_taken_date'} = $max;
+			}
+
+                        # 
+
+                        $q->{'per_page'} ||= $self->divine_option("clustermap.max_photos", 100);
+                        $q->{'per_page'} = ceil($q->{'per_page'} * .9);
+                }
+        }
+
+        #
+
+        my $markers = $self->markers_for_clusters($clusters);
+
+        return ($markers, $bbox);
+}
+
+sub cluster_blended_search {
+        my $self = shift;
+        my $photos = shift;
+        my $pts = shift;
+
+        my %clusters = ();
+        my %groups = ();
+        my %bbox = ();
+
+        if (defined($pts)){
+                foreach my $c (@$pts){
+                        $bbox{'sw_lat'} = (exists($bbox{'sw_lat'})) ? min($bbox{'sw_lat'}, $c->[0]) : $c->[0];
+                        $bbox{'sw_lon'} = (exists($bbox{'sw_lon'})) ? min($bbox{'sw_lon'}, $c->[1]) : $c->[1];
+                        $bbox{'ne_lat'} = (exists($bbox{'ne_lat'})) ? max($bbox{'ne_lat'}, $c->[0]) : $c->[0];
+                        $bbox{'ne_lon'} = (exists($bbox{'ne_lon'})) ? max($bbox{'ne_lon'}, $c->[1]) : $c->[1];
+                }
+        }
+        
+        foreach my $ph (@$photos){
+                
+                my $uid = $ph->getAttribute("id");
+
+                my $lat = $self->get_geo_property($ph, "latitude");
+                my $lon = $self->get_geo_property($ph, "longitude");
+                my $cluster_key = $self->geotude($lat, $lon);
+                
+                # to do : allow for other sizes and center crop...
+
+                my $url = sprintf("http://farm%d.static.flickr.com/%d/%s_%s_s.jpg",
+                                  $ph->getAttribute("farm"),
+                                  $ph->getAttribute("server"),
+                                  $ph->getAttribute("id"),
+                                  $ph->getAttribute("secret"));
+
+                my %args = (
+                            'uid' => $uid,
+                            'lat' => $lat,
+                            'lon' => $lon,
+                            'width' => 75,
+                            'height' => 75,
+                            'url' => $url,
+                           );
+
+                # attribution
+
+                if (my $owner = $ph->getAttribute("ownername")){
+
+                        my $page = sprintf("http://www.flickr.com/photos/%s/%s",
+                                           $ph->getAttribute("owner"),
+                                           $uid);
+
+                        $args{'attribution'} = {'owner' => $owner, 'url' => $page};
+                }
+
+                my $marker = Net::Flickr::Geo::ModestMaps::Marker->new(%args);
+                
+                $clusters{$cluster_key} ||= [];
+                push @{$clusters{$cluster_key}}, $marker;
+
+                $bbox{'sw_lat'} = (exists($bbox{'sw_lat'})) ? min($bbox{'sw_lat'}, $lat) : $lat;
+                $bbox{'sw_lon'} = (exists($bbox{'sw_lon'})) ? min($bbox{'sw_lon'}, $lon) : $lon;
+                $bbox{'ne_lat'} = (exists($bbox{'ne_lat'})) ? max($bbox{'ne_lat'}, $lat) : $lat;
+                $bbox{'ne_lon'} = (exists($bbox{'ne_lon'})) ? max($bbox{'ne_lon'}, $lon) : $lon;
+                
+                # to do : check to see how closely together
+                # stuff is clustered; weight counts below accordingly
+                
+                my $rnd_lat = sprintf("%.2f", $lat);
+                my $rnd_lon = sprintf("%.2f", $lon);
+                my $group_key = $self->geotude($rnd_lat, $rnd_lon);
+                
+                $groups{$group_key} ++;
+        }
+
+        return \%clusters, \%groups, \%bbox;
+}
+
+#
+# cluster methods (other)
+#
+
+sub prepare_modestmaps_args_for_cluster_map {
+        my $self = shift;
+        my $markers = shift;
+        my $bbox = shift;
+
+        my $provider = $self->divine_option("modestmaps.provider");
+        my $bleed = $self->divine_option("modestmaps.bleed", 1);
+        my $adjust = $self->divine_option("modestmaps.adjust", .25);
+        my $filter = $self->divine_option("modestmaps.filter", );
+        my $zoom = $self->divine_option("pinwin.zoom", 17);
+
+        my $markers_prepped = Net::Flickr::Geo::ModestMaps::MarkerSet->prepare($markers);
+
+        my %mm_args = (
+                       'provider' => $provider,
+                       'method' => 'bbox',
+                       'bleed' => $bleed,
+                       'adjust' => $adjust,
+                       'marker' => $markers_prepped,
+                       'zoom' => $zoom,
+                       'bbox' => "$bbox->{'sw_lat'},$bbox->{'sw_lon'},$bbox->{'ne_lat'},$bbox->{'ne_lon'}",
+                   );
+
+        my $dist_avg = $self->calculate_average_distance($bbox);
+        
+        my $readjust = 0;
+        
+        if ($dist_avg < 1){
+                $readjust = .25;
+        }
+                
+        elsif ($dist_avg < 1.5){
+                $readjust = .15     
+        }
+        
+        elsif ($dist_avg < 2){
+                $readjust = .1;
+        }
+        
+        else { }
+        
+        if (($readjust) && ($readjust > $mm_args{'adjust'})){
+                $self->log()->info("autosetting modestmaps adjust parameter to $readjust");
+                $mm_args{'adjust'} = $readjust;
+        }
+
+	if ($filter){
+                $mm_args{'filter'} = $filter;
+        }
+
+        return \%mm_args;
+}
+
+#
+# geo
+#
+
+sub geotude {
+        my $self = shift;
+        my $lat = shift;
+        my $lon = shift;
+
+        my $geo = Geo::Geotude->new('latitude' => $lat, 'longitude' => $lon);
+        return $geo->geotude();
+}
+
+sub calculate_average_distance {
+        my $self = shift;
+        my $bbox = shift;
+
+        my $geo = Geo::Distance->new();
+        
+        my $dist_x = $geo->distance("kilometer", $bbox->{'sw_lon'}, $bbox->{'sw_lat'}, $bbox->{'sw_lon'}, $bbox->{'ne_lat'});
+        my $dist_y = $geo->distance("kilometer", $bbox->{'sw_lon'}, $bbox->{'sw_lat'}, $bbox->{'sw_lon'}, $bbox->{'ne_lat'});
+                
+        my $dist_avg = ($dist_x + $dist_y) / 2;
+                
+        $self->log()->info("distance between sw and ne corners is $dist_x km and $dist_y km");
+        $self->log()->info("average distance is $dist_avg km");
+
+	return $dist_avg;
+}
+
+#
+# images
+#
+
+sub stack_images {
+        my $self = shift;
+        my $images = shift;
+
+        my $count = scalar(@$images);
+        my $per_row = ceil(sqrt($count));
+        my $rows = ceil($count/$per_row);
+
+        if ($count == 3){
+                # $per_row = 3;
+                # $rows = 1;
+        }
+
+        $self->log()->info("stacking $count images $per_row per row for a total of $rows rows");
+
+        my $spacer_px = 10;
+        my $spacers_w = $per_row - 1;
+        my $spacers_h = $rows - 1;
+
+        my $cnv_w = ($per_row * 75) + ($spacers_w * $spacer_px);
+        my $cnv_h = ($rows * 75) + ($spacers_h * $spacer_px);
+
+        $self->log()->debug("stacking canvas is $cnv_w x $cnv_h pixels");
+
+        my $truecolor = 1;
+        GD::Image->trueColor($truecolor);
+
+        my $im = new GD::Image($cnv_w, $cnv_h);
+        my $wh = $im->colorAllocate(255, 255, 255);
+
+        $im->filledRectangle(0, 0, $cnv_w, $cnv_h, $wh);
+
+        my $across = 1;
+        my $down = 1;
+
+        foreach my $url (@$images){
+
+                my $tmp = $self->mk_tempfile(".jpg");
+
+                if (! getstore($url, $tmp)){
+                        $self->log()->error("failed to retrieve $url for stacking, $!");
+                        next;
+                }
+
+                my $ph = GD::Image->newFromJpeg($tmp, $truecolor);
+
+                if (! $ph){
+                        $self->log()->error("failed to create image from $tmp, $!");
+                        next;
+                }
+
+                my $copy_x = ($spacer_px * ($across - 1)) + (75 * ($across - 1));
+                my $copy_y = ($spacer_px * ($down - 1)) + (75 * ($down - 1));
+
+                $self->log()->debug("copy image at $copy_x ($across accross) and $copy_y ($down down)");
+
+                eval {
+                	$im->copy($ph, $copy_x, $copy_y, 0, 0, 75, 75);
+		};
+
+                if ($@){
+                        $self->log()->error("picture made GD cry, skipping. $@");
+                }
+
+                unlink($tmp);
+
+                if ($across == $per_row){
+                        $across = 1;
+                        $down += 1;
+                }
+
+                else {
+                        $across += 1
+                }
+        }
+
+        return $self->write_jpeg($im);
+}
+
+sub write_jpeg {
+        my $self = shift;
+        my $im = shift;
+        my $out = shift;
+
+        if (! defined($out)){
+                $out = $self->mk_tempfile(".jpg");
+        }
+
         my $fh = FileHandle->new(">$out");
 
         binmode($fh);
         $fh->print($im->jpeg(100));
         $fh->close();
 
-        unlink($map_img);
         return $out;
+}
+
+#
+# datetime
+#
+
+sub calculate_delta_days {
+        my $self = shift;
+        my $dt = shift;
+        my $offset = shift;
+       
+        $dt =~ /^(\d{4})-(\d{2})-(\d{2})/;
+        
+        my $yyyy = $1;
+        my $mm = $2;
+        my $dd = $3;
+        
+        my $before = sprintf("%04d-%02d-%02d 00:00:00", Add_Delta_Days($yyyy, $mm, $dd, -$offset));
+        my $after = sprintf("%04d-%02d-%02d 23:59:59", Add_Delta_Days($yyyy, $mm, $dd, $offset));
+
+        return ($before, $after);
+}
+
+sub today {
+        my $self = shift;
+        return sprintf("%04d-%02d-%02d", Today());
+}
+
+#
+# hey ! look over there !!
+#
+
+package Net::Flickr::Geo::ModestMaps::MarkerSet;
+
+sub prepare {
+        my $pkg = shift;
+        my $markers = shift;
+
+        if (ref($markers) ne "ARRAY"){
+                return "$markers";
+        }
+
+        my @prep = map { "$_" } @$markers;
+        return \@prep;
+}
+
+package Net::Flickr::Geo::ModestMaps::Marker;
+
+use overload q("") => sub {
+        my $self = shift;
+
+        my @parts = map {
+                $self->{$_}
+        } qw(uid lat lon width height);
+
+        return join(",", @parts);
+};
+
+sub new {
+        my $pkg = shift;
+        my %self = @_;
+        return bless \%self, $pkg;
 }
 
 =head1 VERSION
 
-0.65
+0.7
 
 =head1 DATE
 
-$Date: 2008/03/17 15:59:13 $
+$Date: 2008/06/30 00:33:21 $
 
 =head1 AUTHOR
 
