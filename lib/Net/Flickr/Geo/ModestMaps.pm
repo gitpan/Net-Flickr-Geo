@@ -1,10 +1,10 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.61 2008/07/05 07:45:16 asc Exp $
+# $Id: ModestMaps.pm,v 1.62 2008/07/05 16:56:23 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
 
-$Net::Flickr::Geo::ModestMaps::VERSION = '0.71';
+$Net::Flickr::Geo::ModestMaps::VERSION = '0.711';
 
 =head1 NAME
 
@@ -1140,7 +1140,7 @@ sub fetch_modestmap_image {
         my $remote = $self->divine_option("modestmaps.server");
 
         my $mm = Net::ModestMaps->new();
-        $mm->endpoint($remote);
+        $mm->host($remote);
         $mm->timeout($timeout);
         $mm->ensure_max_header_lines($args->{'marker'});
         
@@ -1944,11 +1944,11 @@ sub new {
 
 =head1 VERSION
 
-0.71
+0.711
 
 =head1 DATE
 
-$Date: 2008/07/05 07:45:16 $
+$Date: 2008/07/05 16:56:23 $
 
 =head1 AUTHOR
 
