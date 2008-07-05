@@ -4,7 +4,7 @@ use strict;
 package Net::Flickr::Geo::GoogleMaps;
 use base qw (Net::Flickr::Geo);
 
-$Net::Flickr::Geo::GoogleMaps::VERSION = '0.7';
+$Net::Flickr::Geo::GoogleMaps::VERSION = '0.71';
 
 =head1 NAME
 
@@ -303,7 +303,7 @@ sub fetch_map_image {
 
 =head1 VERSION
 
-0.7
+0.71
 
 =head1 DATE
 

@@ -1,9 +1,9 @@
-# $Id: Pinwin.pm,v 1.3 2008/06/22 07:04:56 asc Exp $
+# $Id: Pinwin.pm,v 1.4 2008/07/02 15:50:11 asc Exp $
 
 use strict;
 package Net::Flickr::Geo::Pinwin;
 
-$Net::Flickr::Geo::Pinwin::VERSION = '0.7';
+$Net::Flickr::Geo::Pinwin::VERSION = '0.71';
 
 =head1 NAME 
 
@@ -57,11 +57,11 @@ sub mk_flickr_pinwin {
 
 =head1 VERSION
 
-0.7
+0.71
 
 =head1 DATE
 
-$Date: 2008/06/22 07:04:56 $
+$Date: 2008/07/02 15:50:11 $
 
 =head1 AUTHOR
 

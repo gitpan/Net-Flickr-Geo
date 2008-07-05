@@ -1,4 +1,4 @@
-# $Id: Build.PL,v 1.7 2008/06/28 22:07:20 asc Exp $
+# $Id: Build.PL,v 1.8 2008/07/05 07:05:34 asc Exp $
 
 use strict;
 use Module::Build;
@@ -24,6 +24,7 @@ my $build = Module::Build->new(module_name => 'Net::Flickr::Geo',
                                             'LWP::UserAgent' => '0',
                                             'MIME::Base64' => '0',
                                             'Net::Flickr::API' => '>= 1.67',
+                                            'Net::ModestMaps' => '>= 1.0',
                                             'POSIX' => '0',
                                             'URI' => 0,
 			       },

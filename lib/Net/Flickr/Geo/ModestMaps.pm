@@ -1,10 +1,10 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.57 2008/06/30 00:33:21 asc Exp $
+# $Id: ModestMaps.pm,v 1.61 2008/07/05 07:45:16 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
 
-$Net::Flickr::Geo::ModestMaps::VERSION = '0.7';
+$Net::Flickr::Geo::ModestMaps::VERSION = '0.71';
 
 =head1 NAME
 
@@ -348,6 +348,7 @@ Default is 300 seconds.
 
 =cut
 
+use Net::ModestMaps;
 use Data::Dumper;
 use FileHandle;
 use GD;
@@ -1041,7 +1042,7 @@ sub collect_attributions {
                                 
                         } @{$mrk->{'attribution'}};
                 }
-        } @$markers;
+        }
 
         return \%attribution;
 }
@@ -1138,53 +1139,20 @@ sub fetch_modestmap_image {
         my $timeout = $self->divine_option("modestmaps.timeout", (5 * 60));
         my $remote = $self->divine_option("modestmaps.server");
 
-        $self->log()->info("fetch from $remote w/timeout : $timeout");
-
-        my $uri = URI->new($remote);
-        $uri->query_form(%$args);
-        my $url = $uri->as_string();
-
-        my $ua = LWP::UserAgent->new();
-        $ua->timeout($timeout);
-
-        # hello POST?
-
-        my $req = HTTP::Request->new('GET' => $url);
-        my $res = $ua->request($req);
-
-        my $status = $res->code();
-
-        if ($status != 200){
-
-                my $h = $res->headers();
-                my $code = $h->header('x-errorcode');
-                my $msg = $h->header('x-errormessage');
-                $self->log()->error("http error : $status - modest maps server error : $code ($msg)");
-                return;
-        }
-
-        my $fh = FileHandle->new(">$out");
-        binmode($fh);
-
-        $fh->print($res->content());
-        $fh->close();
-
-        my %data = (
-                    'url' => $url,
-                    'path' => $out,
-                   );
+        my $mm = Net::ModestMaps->new();
+        $mm->endpoint($remote);
+        $mm->timeout($timeout);
+        $mm->ensure_max_header_lines($args->{'marker'});
         
-        my $headers = $res->headers();
+        my $data = $mm->draw($args, $out);
 
-        foreach my $field ($headers->header_field_names()){
-
-                if ($field =~/^X-wscompose-(.*)$/i){
-                        $data{lc($1)} = $headers->header($field);
-                }
+        if (my $err = $data->{'error'}){
+                $self->log()->info("modestmaps error : $err->{'code'}, $err->{'message'}");
+                return undef;
         }
 
         $self->log()->info("received modest map image and stored in $out");
-        return \%data;
+        return $data;
 }
 
 sub modify_map {
@@ -1820,10 +1788,13 @@ sub stack_images {
         my $per_row = ceil(sqrt($count));
         my $rows = ceil($count/$per_row);
 
-        if ($count == 3){
-                # $per_row = 3;
-                # $rows = 1;
-        }
+	my $other_rows = $rows - 1;
+	my $last_row = $count - ($other_rows * $per_row);
+
+	if ($last_row == $other_rows){
+		$per_row += 1;
+		$rows -= 1;
+	}
 
         $self->log()->info("stacking $count images $per_row per row for a total of $rows rows");
 
@@ -1973,11 +1944,11 @@ sub new {
 
 =head1 VERSION
 
-0.7
+0.71
 
 =head1 DATE
 
-$Date: 2008/06/30 00:33:21 $
+$Date: 2008/07/05 07:45:16 $
 
 =head1 AUTHOR
 
@@ -1991,7 +1962,7 @@ L<http://flickr.com/photos/straup/tags/modestmaps/>
 
 Modest Maps 1.0 or higher. 
 
-L<http://modestmaps.mapstraction.com/>
+L<http://modestmaps.com/>
 
 =head1 NOTES
 
@@ -2001,9 +1972,13 @@ All uploads to Flickr are marked with a content-type of "other".
 
 L<Net::Flickr::Geo>
 
+L<Net::ModestMaps>
+
 L<http://modestmaps.com/>
 
 L<http://mike.teczno.com/notes/oakland-crime-maps/IX.html>
+
+L<http://www.aaronland.info/weblog/2008/02/05/fox/#ws-modestmaps>
 
 =head1 BUGS
 

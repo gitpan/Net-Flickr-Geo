@@ -1,5 +1,5 @@
 # -*-cperl-*-
-# $Id: modestmaps_mk_cluster_map,v 1.18 2008/06/30 00:33:21 asc Exp $
+# $Id: modestmaps_mk_cluster_map,v 1.20 2008/07/05 07:05:34 asc Exp $
 
 use strict;
 
@@ -30,9 +30,9 @@ sub main {
         $cfg->param("modestmaps.timeout", (30 * 60));
 
         $cfg->param("clustermap.radius", .5);
-        $cfg->param("clustermap.offset", 365);
+        $cfg->param("clustermap.offset", 14);
         $cfg->param("clustermap.only_photo_owner", 0);
-        $cfg->param("clustermap.force_photo_owner", 1);
+        $cfg->param("clustermap.force_photo_owner", 0);
         # $cfg->param("clustermap.photo_license", '4,5,7');
 
         $cfg->param("clustermap.max_photos", 100);
