@@ -1,10 +1,10 @@
 use strict;
-# $Id: ModestMaps.pm,v 1.62 2008/07/05 16:56:23 asc Exp $
+# $Id: ModestMaps.pm,v 1.63 2008/08/03 17:08:39 asc Exp $
 
 package Net::Flickr::Geo::ModestMaps;
 use base qw(Net::Flickr::Geo);
 
-$Net::Flickr::Geo::ModestMaps::VERSION = '0.711';
+$Net::Flickr::Geo::ModestMaps::VERSION = '0.72';
 
 =head1 NAME
 
@@ -523,7 +523,7 @@ sub mk_poster_map_for_photoset {
         }
 
         else {
-                $mm_args{'zoom'} = $self->divine_option("pinwin.zoom", 17);                
+                $mm_args{'zoom'} = $self->divine_option("modestmaps.zoom", 17);                
         }
 
         if ($filter){
@@ -1702,7 +1702,7 @@ sub prepare_modestmaps_args_for_cluster_map {
         my $bleed = $self->divine_option("modestmaps.bleed", 1);
         my $adjust = $self->divine_option("modestmaps.adjust", .25);
         my $filter = $self->divine_option("modestmaps.filter", );
-        my $zoom = $self->divine_option("pinwin.zoom", 17);
+        my $zoom = $self->divine_option("modestmaps.zoom", 17);
 
         my $markers_prepped = Net::Flickr::Geo::ModestMaps::MarkerSet->prepare($markers);
 
@@ -1944,11 +1944,11 @@ sub new {
 
 =head1 VERSION
 
-0.711
+0.72
 
 =head1 DATE
 
-$Date: 2008/07/05 16:56:23 $
+$Date: 2008/08/03 17:08:39 $
 
 =head1 AUTHOR
 

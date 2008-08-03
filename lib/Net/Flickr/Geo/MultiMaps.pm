@@ -1,10 +1,10 @@
 use strict;
-# $Id: MultiMaps.pm,v 1.7 2008/07/05 16:56:23 asc Exp $
+# $Id: MultiMaps.pm,v 1.8 2008/08/03 17:08:40 asc Exp $
 
 package Net::Flickr::Geo::MultiMaps;
 use base qw (Net::Flickr::Geo);
 
-$Net::Flickr::Geo::MultiMaps::VERSION = '0.711';
+$Net::Flickr::Geo::MultiMaps::VERSION = '0.72';
 
 =head1 NAME
 
@@ -277,11 +277,11 @@ sub fetch_map_image {
 
 =head1 VERSION
 
-0.711
+0.72
 
 =head1 DATE
 
-$Date: 2008/07/05 16:56:23 $
+$Date: 2008/08/03 17:08:40 $
 
 =head1 AUTHOR
 

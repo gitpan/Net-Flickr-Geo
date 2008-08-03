@@ -11,7 +11,6 @@ DESCRIPTION
 
 PROVIDERS
   ModestMaps
-
     Fetch maps using the Modest Maps ws-pinwin HTTP interface :
 
      #
@@ -52,7 +51,6 @@ PROVIDERS
      $fl->log()->info(Dumper($tiles));
 
   YahooMaps
-
     Fetch maps using the Yahoo! Maps Image API :
 
      #
@@ -89,7 +87,6 @@ PROVIDERS
      }
 
   Google Maps
-
     Fetch maps using the Google Maps Static Maps API :
 
      #
@@ -110,7 +107,6 @@ PROVIDERS
      $fl->log()->info("wrote map to $map->[0]->[0]");
 
   MultiMaps
-
     Fetch maps using the MultiMap Static Maps API :
 
      #
@@ -136,10 +132,10 @@ IMPORTANT
     happen again...
 
 VERSION
-    0.711
+    0.72
 
 DATE
-    $Date: 2008/07/05 16:56:23 $
+    $Date: 2008/08/03 17:08:39 $
 
 AUTHOR
     Aaron Straup Cope <ascope@cpan.org>
@@ -150,31 +146,31 @@ NOTES
 SEE ALSO
     Net::Flickr::API
 
-    http://developer.yahoo.com/maps/rest/V1/mapImage.html
+    <http://developer.yahoo.com/maps/rest/V1/mapImage.html>
 
-    http://www.multimap.com/share/documentation/openapi/1.2/web_service/stat
-    icmaps.htm
+    <http://www.multimap.com/share/documentation/openapi/1.2/web_service/sta
+    ticmaps.htm>
 
-    http://code.google.com/apis/maps/documentation/staticmaps/index.html
+    <http://code.google.com/apis/maps/documentation/staticmaps/index.html>
 
-    http://modestmaps.com/
+    <http://modestmaps.com/>
 
-    http://mike.teczno.com/notes/oakland-crime-maps/IX.html
+    <http://mike.teczno.com/notes/oakland-crime-maps/IX.html>
 
-    http://www.aaronland.info/weblog/2007/07/28/trees/#delmaps_pm
+    <http://www.aaronland.info/weblog/2007/07/28/trees/#delmaps_pm>
 
-    http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo
+    <http://www.aaronland.info/weblog/2007/06/08/pynchonite/#net-flickr-geo>
 
-    http://www.aaronland.info/weblog/2007/06/08/pynchonite/#nfg_mm
+    <http://www.aaronland.info/weblog/2007/06/08/pynchonite/#nfg_mm>
 
-    http://flickr.com/photos/straup/sets/72157600321286227/
+    <http://flickr.com/photos/straup/sets/72157600321286227/>
 
-    http://www.flickr.com/help/filters/
+    <http://www.flickr.com/help/filters/>
 
 BUGS
     Sure, why not.
 
-    Please report all bugs via http://rt.cpan.org
+    Please report all bugs via <http://rt.cpan.org>
 
 LICENSE
     Copyright (c) 2007-2008 Aaron Straup Cope. All Rights Reserved.

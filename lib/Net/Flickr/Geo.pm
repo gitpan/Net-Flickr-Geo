@@ -5,7 +5,7 @@ use strict;
 package Net::Flickr::Geo;
 use base qw (Net::Flickr::API);
 
-$Net::Flickr::Geo::VERSION = '0.711';
+$Net::Flickr::Geo::VERSION = '0.72';
 
 =head1 NAME 
 
@@ -752,11 +752,11 @@ sub DESTROY {
 
 =head1 VERSION
 
-0.711
+0.72
 
 =head1 DATE
 
-$Date: 2008/07/05 16:56:23 $
+$Date: 2008/08/03 17:08:39 $
 
 =head1 AUTHOR
 

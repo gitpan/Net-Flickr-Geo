@@ -6,9 +6,22 @@
 @prefix asc:     <http://aaronland.info/ns/changefile/> .
                                      
 <>
-        dc:identifier           "$Id: Changes,v 1.18 2008/07/05 16:56:23 asc Exp $" ;
+        dc:identifier           "$Id: Changes,v 1.19 2008/08/03 17:08:39 asc Exp $" ;
         dc:description          "Changes for Net::Flickr::Geo.pm" ;
         dcterms:references      <http://aaronland.info/perl/net/flickr/geo/> .
+
+<http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.72.tar.gz>
+        dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
+        dcterms:replaces    <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.711.tar.gz> ;
+
+        doap:Version    [
+                        doap:revision     "0.72" ;
+                        doap:created      "2008-08-03" ;
+                        ];
+        asc:changes     [
+                        asc:bugfix        "require Net::ModestMaps 1.1" ;
+                        asc:update        "updated examples" ;
+                        ] .
 
 <http://aaronland.info/perl/net/flickr/geo/Net-Flickr-Geo-0.711.tar.gz>
         dcterms:isVersionOf <http://aaronland.info/perl/flickr/geo/> ;
